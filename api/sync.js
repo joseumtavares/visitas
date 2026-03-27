@@ -24,11 +24,13 @@ const { validateSyncKey, cors, sb, body, ok, err } = require('./_supabase');
 // ── helpers de conversão app ↔ banco ────────────────────────────────────────
 
 // camelCase das chaves do app → snake_case do banco
-const toSnake = s => s.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`);
+// const toSnake = s => s.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`);
 
+const workspace_name = 'visitas';
+// Change to use the original not sanitised string
 function sanitize(ws) {
-  return String(ws || 'principal').trim().toLowerCase()
-    .replace(/[^a-z0-9_-]/g, '').slice(0, 80) || 'principal';
+  return String(ws || workspace_name).trim()
+    .replace(/[^a-z0-9_-]/g, '').slice(0, 80) || workspace_name;
 }
 
 // ── Leitura (GET) ────────────────────────────────────────────────────────────
