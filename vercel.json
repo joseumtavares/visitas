@@ -1,0 +1,26 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)",     "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control",        "value": "no-store, no-cache, must-revalidate" },
+        { "key": "Service-Worker-Allowed","value": "/" }
+      ]
+    },
+    { "source": "/manifest.json", "headers": [{ "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }] },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control",     "value": "no-store, no-cache, must-revalidate" },
+        { "key": "Permissions-Policy","value": "geolocation=(self), camera=(self)" }
+      ]
+    },
+    { "source": "/icons/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800, immutable" }] },
+    { "source": "/api/(.*)",   "headers": [{ "key": "Cache-Control", "value": "no-store" }] }
+  ]
+}

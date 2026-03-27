@@ -1,0 +1,8 @@
+{
+  "name": "thermovisit-v4",
+  "private": true,
+  "version": "4.0.0",
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}

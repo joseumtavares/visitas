@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>ThermoVisit — Visitas de Campo</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1e3a8a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Caixeiro Viajante">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f0f4f0;--card:#fff;--border:#e2e8e2;
+  --primary:#1a6b3a;--pl:#e8f5ee;--pd:#0f4523;
+  --accent:#d97706;--acl:#fef3c7;
+  --danger:#dc2626;--dangerl:#fee2e2;
+  --info:#1d4ed8;--infol:#dbeafe;
+  --purple:#6d28d9;--purplel:#ede9fe;
+  --teal:#0d9488;--teall:#ccfbf1;
+  --text:#1a2e1a;--text2:#4a6050;--text3:#8aab90;
+  --r:12px;--sh:0 1px 3px rgba(0,0,0,.08);--shm:0 4px 14px rgba(0,0,0,.13);
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+#root{display:flex;flex-direction:column;min-height:100vh}
+button{cursor:pointer;border:none;background:none;font-family:inherit}
+input,select,textarea{font-family:inherit;font-size:15px;outline:none;color:var(--text)}
+.hdr{background:var(--pd);color:#fff;padding:13px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
+.hdr-t{font-size:17px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbtn{background:rgba(255,255,255,.18);color:#fff;border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;flex-shrink:0}
+.nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -2px 10px rgba(0,0,0,.06)}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 2px 9px;cursor:pointer;color:var(--text3);font-size:9px;font-weight:600;gap:2px;min-height:55px;transition:color .15s}
+.ni.on{color:var(--primary)}
+.content{flex:1;padding:16px;padding-bottom:82px;max-width:600px;width:100%;margin:0 auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;transition:all .15s;min-height:44px;cursor:pointer;border:none}
+.bp{background:var(--primary);color:#fff}.bp:active{background:var(--pd)}
+.bo{background:transparent;color:var(--primary);border:1.5px solid var(--primary)}.bo:active{background:var(--pl)}
+.bd{background:var(--danger);color:#fff}
+.bg{background:transparent;color:var(--text2);border:1px solid var(--border)}.bg:active{background:var(--bg)}
+.bpurple{background:var(--purple);color:#fff}
+.bteal{background:var(--teal);color:#fff}
+.bgreen{background:#16a34a;color:#fff}
+.bs{padding:7px 12px;font-size:13px;min-height:36px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+.field label{font-size:13px;font-weight:600;color:var(--text2)}
+.field input,.field select,.field textarea{border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;background:var(--card);width:100%;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}
+.field textarea{resize:vertical;min-height:78px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.stitle{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+.shdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.shdr h3{font-size:15px;font-weight:700}
+.divr{height:1px;background:var(--border);margin:14px 0}
+.chip{display:inline-flex;align-items:center;padding:4px 12px;background:var(--pl);color:var(--pd);border-radius:20px;font-size:13px;font-weight:600}
+.tag{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600}
+.cbar{display:flex;gap:8px;margin-top:12px}
+.schk{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.box{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px}
+.box.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.scard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:11px 8px;text-align:center}
+.snum{font-size:22px;font-weight:800;color:var(--primary);line-height:1}
+.slbl{font-size:10px;color:var(--text3);font-weight:600;margin-top:2px}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.qbtn{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;cursor:pointer}
+.qbtn:active{border-color:var(--primary);background:var(--pl)}
+.cc{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px}
+.cn{font-size:16px;font-weight:700;margin-bottom:3px}
+.cm{font-size:13px;color:var(--text2);display:flex;gap:8px;flex-wrap:wrap;margin-bottom:5px}
+.cac{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.vi{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px;border-left:4px solid var(--primary)}
+.order-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px;border-left:4px solid var(--purple)}
+.lead-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px;border-left:4px solid var(--teal)}
+.comm-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px}
+.product-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px}
+.report-row{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;margin-bottom:7px}
+.tabs{display:flex;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:14px;overflow-x:auto}
+.tab{flex:1;padding:7px 6px;border-radius:7px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;color:var(--text2);white-space:nowrap;min-width:fit-content}
+.tab.on{background:var(--card);color:var(--primary);box-shadow:var(--sh)}
+.dr{display:flex;padding:8px 0;border-bottom:1px solid var(--border);gap:10px;align-items:flex-start}
+.dl{font-size:13px;color:var(--text2);min-width:100px;font-weight:600;flex-shrink:0}
+.dv{font-size:13px;flex:1;word-break:break-word}
+.ecard{background:var(--pl);border:1px solid #b7d9c4;border-radius:10px;padding:13px;margin-bottom:10px}
+.fcard{background:#f4fbf6;border:1px solid #cce6d6;border-radius:9px;padding:11px;margin:8px 0}
+.info-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:#d1fae5;color:#065f46}
+.pill-blue{background:#dbeafe;color:#1e40af}
+.pill-amber{background:#fef3c7;color:#92400e}
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0}
+.photo-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:#f0f0f0}
+.photo-upload{width:100%;aspect-ratio:1;border:2px dashed var(--border);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:11px;font-weight:600;gap:4px;background:var(--bg)}
+.photo-upload:active{border-color:var(--primary);background:var(--pl)}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:600;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.lightbox img{max-width:95vw;max-height:80vh;border-radius:10px;object-fit:contain}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:300;display:flex;align-items:flex-end}
+.modal{background:var(--card);border-radius:18px 18px 0 0;width:100%;max-height:93vh;overflow-y:auto;padding:19px}
+.mhdl{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 15px}
+.mtitle{font-size:16px;font-weight:800;margin-bottom:13px}
+.empty{text-align:center;padding:36px 20px;color:var(--text3)}
+.sb{background:var(--card);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;width:100%;margin-bottom:9px;font-size:15px;color:var(--text)}
+.sb:focus{border-color:var(--primary)}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;background:#1a2e1a;color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:var(--shm);animation:tf .2s ease;white-space:nowrap;max-width:92vw}
+@keyframes tf{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.sbox{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:12px}
+.sbox-title{font-size:13px;font-weight:800;color:var(--pd);margin-bottom:11px;display:flex;align-items:center;gap:6px}
+.toggle-group{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
+.tpill{padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;border:1.5px solid var(--border);color:var(--text2);cursor:pointer;transition:all .15s}
+.tpill.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.pay-avista{background:#d1fae5;color:#065f46}
+.pay-parcelado{background:#dbeafe;color:#1e40af}
+.pay-financiamento{background:#ede9fe;color:#5b21b6}
+.status-pago{background:#d1fae5;color:#065f46}
+.status-pendente{background:#fef3c7;color:#92400e}
+.status-cancelado{background:#fee2e2;color:#b91c1c}
+.mapov{position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;background:#1a1a1a}
+.maphdr{background:var(--pd);color:#fff;padding:12px 15px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.maphdr-t{flex:1;font-size:15px;font-weight:700}
+.mapftr{background:var(--card);padding:11px 15px;flex-shrink:0;border-top:1px solid var(--border)}
+.mapcoords{font-size:12px;color:var(--text2);text-align:center;margin-bottom:9px;min-height:18px}
+.minimap{width:100%;height:150px;border-radius:10px;border:1px solid var(--border);overflow:hidden;margin-bottom:10px}
+.locbox{background:#f0faf4;border:1.5px solid #9fd4b4;border-radius:12px;padding:13px;margin-bottom:12px}
+.locbox-t{font-size:12px;font-weight:700;color:var(--pd);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.live-dot{animation:gps-pulse 2s ease-in-out infinite}
+@keyframes gps-pulse{0%,100%{opacity:1}50%{opacity:.55}}
+.order-item-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.order-total{background:var(--pd);color:#fff;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+.export-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.summary-box{background:var(--pd);color:#fff;border-radius:12px;padding:14px;margin-bottom:14px}
+/* Client autocomplete */
+.autocomplete-wrap{position:relative}
+.autocomplete-drop{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1.5px solid var(--primary);border-top:none;border-radius:0 0 9px 9px;max-height:200px;overflow-y:auto;z-index:200;box-shadow:var(--shm)}
+.autocomplete-item{padding:10px 13px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border)}
+.autocomplete-item:active,.autocomplete-item:hover{background:var(--pl)}
+/* Backup reminder */
+.backup-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:800;display:flex;align-items:center;justify-content:center;padding:20px}
+.backup-box{background:var(--card);border-radius:18px;padding:24px;max-width:360px;width:100%;text-align:center}
+/* Commission badge */
+.comm-pendente{background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.comm-paga{background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+@media print{.nav,.hdr,.export-bar,.no-print{display:none!important}body{background:#fff}.content{padding-bottom:0;max-width:100%}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo}=React;
+
+/* ─── PHOTO STORE (IndexedDB) ────────────────────────────────────────────── */
+const PS=(()=>{
+  let _db=null;
+  const cache=new Map();
+  const open=()=>new Promise((res,rej)=>{
+    if(_db)return res(_db);
+    const r=indexedDB.open('cv_photos_v1',1);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore('p',{keyPath:'id'});
+    r.onsuccess=e=>{_db=e.target.result;res(_db);};
+    r.onerror=()=>rej(r.error);
+  });
+  const tx=(mode='readonly')=>_db.transaction('p',mode).objectStore('p');
+  const save=async(id,data,name='')=>{
+    await open();cache.set(id,data);
+    return new Promise((res,rej)=>{const t=tx('readwrite');t.put({id,data,name});t.transaction.oncomplete=()=>res(id);t.transaction.onerror=()=>rej();});
+  };
+  const get=async id=>{
+    if(cache.has(id))return cache.get(id);
+    await open();
+    return new Promise(res=>{const r=tx().get(id);r.onsuccess=()=>{const d=r.result?.data;if(d)cache.set(id,d);res(d||null);};r.onerror=()=>res(null);});
+  };
+  const getFull=async id=>{
+    await open();
+    return new Promise(res=>{const r=tx().get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>res(null);});
+  };
+  const del=async id=>{
+    cache.delete(id);await open();
+    return new Promise(res=>{const t=tx('readwrite');t.delete(id);t.transaction.oncomplete=()=>res();});
+  };
+  const getAll=async()=>{
+    await open();
+    return new Promise(res=>{const r=tx().getAll();r.onsuccess=()=>{const rows=r.result||[];rows.forEach(p=>cache.set(p.id,p.data));res(rows);};r.onerror=()=>res([]);});
+  };
+  const getSize=async()=>{
+    await open();
+    return new Promise(res=>{const r=tx().getAll();r.onsuccess=()=>{const rows=r.result||[];const bytes=rows.reduce((a,p)=>a+(p.data?.length||0),0);res(Math.round(bytes*0.75/1024/1024*10)/10);};r.onerror=()=>res(0);});
+  };
+  return{save,get,getFull,del,getAll,getSize,cache};
+})();
+
+/* ─── PHOTO COMPRESSION ─────────────────────────────────────────────────── */
+async function compressImage(file,maxPx=1280,quality=0.82){
+  return new Promise(res=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let{width:w,height:h}=img;
+      if(w>maxPx||h>maxPx){const r=Math.min(maxPx/w,maxPx/h);w=Math.round(w*r);h=Math.round(h*r);}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      res(c.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);const r2=new FileReader();r2.onload=e=>res(e.target.result);r2.readAsDataURL(file);};
+    img.src=url;
+  });
+}
+
+/* ─── SAVE TO GALLERY ───────────────────────────────────────────────────── */
+async function savePhotoToGallery(dataUrl,filename){
+  try{
+    // Try Web Share API (best on mobile — uses native share sheet → save to photos)
+    const blob=await(await fetch(dataUrl)).blob();
+    const file=new File([blob],filename,{type:'image/jpeg'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'ThermoVisit — Salvar foto'});
+      return 'shared';
+    }
+  }catch(e){if(e.name!=='AbortError'&&e.name!=='NotAllowedError'){/* fall through */}}
+  // Fallback: download link (browser saves to Downloads, user moves to gallery)
+  const a=document.createElement('a');a.href=dataUrl;a.download=filename;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  return 'downloaded';
+}
+
+async function saveAllPhotosToGallery(photoIds,prefix,onProgress){
+  let saved=0;
+  for(const id of photoIds){
+    const data=await PS.get(id);
+    if(!data)continue;
+    const ts=new Date().toISOString().replace(/[-:T]/g,'').slice(0,15);
+    const filename=`thermovisit_${prefix}_${ts}_${saved+1}.jpg`;
+    const a=document.createElement('a');a.href=data;a.download=filename;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    saved++;
+    if(onProgress)onProgress(saved,photoIds.length);
+    await new Promise(r=>setTimeout(r,400));
+  }
+  return saved;
+}
+
+/* ─── STORAGE ────────────────────────────────────────────────────────────── */
+const SK='cv_v4';
+const uuid=()=>crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(36).slice(2)}`;
+function loadData(){try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}}
+function saveData(d){try{localStorage.setItem(SK,JSON.stringify(d));return true;}catch{return false;}}
+function markBackup(){localStorage.setItem('cv_last_backup',new Date().toISOString());localStorage.removeItem('cv_backup_snooze_until');}
+function getLastBackup(){return localStorage.getItem('cv_last_backup');}
+function snoozeBackupReminder(hours=3){localStorage.setItem('cv_backup_snooze_until',new Date(Date.now()+hours*60*60*1000).toISOString());}
+function getBackupSnooze(){return localStorage.getItem('cv_backup_snooze_until');}
+const CLOUD_CFG_KEY='cv_cloud_cfg_v1';
+const CLOUD_SYNC_URL='/api/sync';
+function loadCloudCfg(){
+  try{
+    const raw=localStorage.getItem(CLOUD_CFG_KEY);
+    if(!raw)return{workspace:'principal',syncKey:'',autoSync:true};
+    const cfg=JSON.parse(raw)||{};
+    return{workspace:cfg.workspace||'principal',syncKey:cfg.syncKey||'',autoSync:cfg.autoSync!==false};
+  }catch{return{workspace:'principal',syncKey:'',autoSync:true};}
+}
+function persistCloudCfg(cfg){
+  try{localStorage.setItem(CLOUD_CFG_KEY,JSON.stringify({workspace:(cfg.workspace||'principal').trim()||'principal',syncKey:(cfg.syncKey||'').trim(),autoSync:cfg.autoSync!==false}));return true;}catch{return false;}
+}
+function normalizeDataState(s){
+  const normalized=s?{...INIT,...s,leads:s.leads||[],commissions:s.commissions||[],referrals:s.referrals||[],company:s.company||INIT.company,representative:s.representative||INIT.representative,customStatusTypes:s.customStatusTypes||INIT.customStatusTypes}:INIT;
+  const meta=s?._meta||{};
+  return{...normalized,_meta:{schemaVersion:5,localUpdatedAt:meta.localUpdatedAt||meta.cloudUpdatedAt||new Date().toISOString(),cloudUpdatedAt:meta.cloudUpdatedAt||null,lastCloudPullAt:meta.lastCloudPullAt||null,lastCloudPushAt:meta.lastCloudPushAt||null}};
+}
+function stampDataState(next,prev){
+  const prevMeta=prev?._meta||{};
+  const nextMeta=next?._meta||{};
+  return{...next,_meta:{...prevMeta,...nextMeta,schemaVersion:5,localUpdatedAt:new Date().toISOString()}};
+}
+function getInitialPage(){
+  try{
+    const p=new URLSearchParams(window.location.search).get('page');
+    return ['home','clientForm','clients','visits','products','productForm','orders','orderForm','reports','empresa'].includes(p)?p:'home';
+  }catch{return 'home';}
+}
+function getReferencedPhotoIds(d){
+  const ids=new Set();
+  (d.products||[]).forEach(p=>{(p.photoIds||[]).forEach(id=>ids.add(id));});
+  (d.clients||[]).forEach(c=>{(c.environments||[]).forEach(e=>{(e.photoIds||[]).forEach(id=>ids.add(id));(e.furnace?.photoIds||[]).forEach(id=>ids.add(id));});});
+  return ids;
+}
+
+/* ─── INIT ───────────────────────────────────────────────────────────────── */
+const INIT={
+  categories:[{id:'1',name:'Produtor Rural',desc:''},{id:'2',name:'Hotel / Pousada',desc:''},{id:'3',name:'Restaurante / Pizzaria',desc:''},{id:'4',name:'Indústria',desc:''},{id:'5',name:'Outros',desc:''}],
+  envTypes:[{id:'1',name:'Estufa de Fumo'},{id:'2',name:'Secador de Grãos'},{id:'3',name:'Piscina'},{id:'4',name:'Forno'},{id:'5',name:'Defumador'},{id:'6',name:'Caldeira'},{id:'7',name:'Sauna'},{id:'8',name:'Aviário'},{id:'9',name:'Tanque de Peixe'}],
+  productCategories:[{id:'1',name:'Aviário'},{id:'2',name:'Equipamentos'},{id:'3',name:'Fumageiro'},{id:'4',name:'Piscicultura'},{id:'5',name:'Secador de Grãos'}],
+  customStatusTypes:[{id:'1',label:'Financiamento em análise'},{id:'2',label:'Aguardando proposta'},{id:'3',label:'Proposta enviada'},{id:'4',label:'Negociação em andamento'}],
+  products:[],clients:[],visits:[],orders:[],
+  referrals:[],leads:[],commissions:[],
+  company:{name:'',cnpj:'',phone:'',bankName:'',bankAgency:'',bankAccount:'',bankPix:'',address:'',tiktok:'',facebook:'',instagram:'',x:'',linkedin:''},
+  representative:{name:'',cities:[]},
+};
+
+/* ─── STORE ──────────────────────────────────────────────────────────────── */
+function useStore(){
+  const [data,setData]=useState(()=>normalizeDataState(loadData()));
+  const [toast,setToast]=useState(null);
+  const ti=useRef(null);
+  const st=useRef(null);
+  const dataRef=useRef(data);
+  const cloudTimer=useRef(null);
+  const [cloudCfg,setCloudCfg]=useState(loadCloudCfg);
+  const [syncState,setSyncState]=useState({ready:false,enabled:false,busy:false,lastPush:null,lastPull:null,remoteUpdatedAt:null,error:null});
+
+  useEffect(()=>{dataRef.current=data;},[data]);
+
+  const showToast=m=>{setToast(m);clearTimeout(ti.current);ti.current=setTimeout(()=>setToast(null),3000)};
+
+  useEffect(()=>{
+    clearTimeout(st.current);
+    st.current=setTimeout(()=>{
+      if(!saveData(dataRef.current))showToast('⚠️ Falha ao salvar os dados no dispositivo. Libere espaço e tente novamente.');
+    },500);
+    return()=>clearTimeout(st.current);
+  },[data]);
+
+  const saveCloudConfig=cfg=>{
+    const next={workspace:(cfg.workspace||'principal').trim()||'principal',syncKey:(cfg.syncKey||'').trim(),autoSync:cfg.autoSync!==false};
+    if(!persistCloudCfg(next)){
+      showToast('⚠️ Não foi possível salvar a configuração da nuvem.');
+      return false;
+    }
+    setCloudCfg(next);
+    setSyncState(s=>({...s,enabled:!!next.syncKey,error:null}));
+    showToast('✅ Configuração da nuvem salva.');
+    return true;
+  };
+
+  const cloudRequest=useCallback(async(method='GET',payload=null)=>{
+    if(!cloudCfg.syncKey)throw new Error('missing-sync-key');
+    const workspace=encodeURIComponent(cloudCfg.workspace||'principal');
+    const res=await fetch(`${CLOUD_SYNC_URL}?workspace=${workspace}`,{
+      method,
+      headers:{'Content-Type':'application/json','x-app-key':cloudCfg.syncKey,'x-workspace':cloudCfg.workspace||'principal'},
+      body:payload?JSON.stringify(payload):undefined
+    });
+    const json=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(json.error||'cloud-request-failed');
+    return json;
+  },[cloudCfg]);
+
+  const pullFromCloud=useCallback(async({silent=false}={})=>{
+    if(!cloudCfg.syncKey){if(!silent)showToast('⚠️ Configure a chave de sincronização primeiro.');return null;}
+    setSyncState(s=>({...s,busy:true,enabled:true,error:null}));
+    try{
+      const remote=await cloudRequest('GET');
+      if(remote?.payload){
+        const normalized=normalizeDataState({...remote.payload,_meta:{...(remote.payload._meta||{}),cloudUpdatedAt:remote.updatedAt||null,lastCloudPullAt:new Date().toISOString()}});
+        setData(normalized);
+        saveData(normalized);
+      }
+      setSyncState(s=>({...s,busy:false,ready:true,enabled:true,lastPull:new Date().toISOString(),remoteUpdatedAt:remote?.updatedAt||null,error:null}));
+      if(!silent)showToast(remote?.payload?'✅ Dados baixados da nuvem.':'ℹ️ Nenhum backup em nuvem encontrado ainda.');
+      return remote;
+    }catch(err){
+      setSyncState(s=>({...s,busy:false,ready:true,enabled:!!cloudCfg.syncKey,error:err.message||'cloud-pull-failed'}));
+      if(!silent)showToast('⚠️ Não foi possível baixar os dados da nuvem.');
+      return null;
+    }
+  },[cloudCfg.syncKey,cloudRequest]);
+
+  const pushToCloud=useCallback(async(payload=dataRef.current,{silent=false}={})=>{
+    if(!cloudCfg.syncKey){if(!silent)showToast('⚠️ Configure a chave de sincronização primeiro.');return null;}
+    setSyncState(s=>({...s,busy:true,enabled:true,error:null}));
+    try{
+      const stamped={...payload,_meta:{...(payload._meta||{}),lastCloudPushAt:new Date().toISOString()}};
+      const result=await cloudRequest('POST',{payload:stamped});
+      setData(prev=>normalizeDataState({...stamped,_meta:{...(stamped._meta||{}),cloudUpdatedAt:result?.updatedAt||new Date().toISOString()}}));
+      setSyncState(s=>({...s,busy:false,ready:true,enabled:true,lastPush:new Date().toISOString(),remoteUpdatedAt:result?.updatedAt||null,error:null}));
+      if(!silent)showToast('✅ Dados enviados para a nuvem.');
+      return result;
+    }catch(err){
+      setSyncState(s=>({...s,busy:false,ready:true,enabled:!!cloudCfg.syncKey,error:err.message||'cloud-push-failed'}));
+      if(!silent)showToast('⚠️ Não foi possível enviar os dados para a nuvem.');
+      return null;
+    }
+  },[cloudCfg.syncKey,cloudRequest]);
+
+  useEffect(()=>{
+    let active=true;
+    (async()=>{
+      if(!cloudCfg.syncKey){setSyncState(s=>({...s,ready:true,enabled:false,busy:false,error:null}));return;}
+      setSyncState(s=>({...s,ready:false,enabled:true,busy:true,error:null}));
+      const remote=await cloudRequest('GET').catch(err=>({error:err.message||'cloud-bootstrap-failed'}));
+      if(!active)return;
+      if(remote?.error){
+        setSyncState(s=>({...s,ready:true,enabled:true,busy:false,error:remote.error}));
+        return;
+      }
+      const localTs=dataRef.current?._meta?.localUpdatedAt?new Date(dataRef.current._meta.localUpdatedAt).getTime():0;
+      const remoteTs=remote?.updatedAt?new Date(remote.updatedAt).getTime():0;
+      if(remote?.payload&&remoteTs>localTs){
+        const normalized=normalizeDataState({...remote.payload,_meta:{...(remote.payload._meta||{}),cloudUpdatedAt:remote.updatedAt,lastCloudPullAt:new Date().toISOString()}});
+        setData(normalized);
+        saveData(normalized);
+        setSyncState(s=>({...s,ready:true,enabled:true,busy:false,lastPull:new Date().toISOString(),remoteUpdatedAt:remote.updatedAt,error:null}));
+      }else{
+        setSyncState(s=>({...s,ready:true,enabled:true,busy:false,remoteUpdatedAt:remote?.updatedAt||null,error:null}));
+        const hasLocalContent=(dataRef.current.clients?.length||dataRef.current.products?.length||dataRef.current.orders?.length||dataRef.current.visits?.length||dataRef.current.leads?.length||dataRef.current.referrals?.length||dataRef.current.commissions?.length)>0;
+        if(hasLocalContent&&(localTs>=remoteTs||!remote?.payload))pushToCloud(dataRef.current,{silent:true});
+      }
+    })();
+    return()=>{active=false;};
+  },[cloudCfg.workspace,cloudCfg.syncKey]);
+
+  useEffect(()=>{
+    if(!cloudCfg.syncKey||cloudCfg.autoSync===false||!syncState.ready||!navigator.onLine)return;
+    clearTimeout(cloudTimer.current);
+    cloudTimer.current=setTimeout(()=>{pushToCloud(dataRef.current,{silent:true});},1800);
+    return()=>clearTimeout(cloudTimer.current);
+  },[data,cloudCfg.syncKey,cloudCfg.autoSync,syncState.ready,pushToCloud]);
+
+  const cleanupOrphanPhotos=async()=>{
+    const refs=getReferencedPhotoIds(dataRef.current);
+    const rows=await PS.getAll();
+    let removed=0;
+    for(const row of rows){if(!refs.has(row.id)){await PS.del(row.id);removed++;}}
+    if(removed>0)showToast(`🧹 ${removed} foto(s) órfã(s) removida(s).`); else showToast('✅ Nenhuma foto órfã encontrada.');
+    return removed;
+  };
+
+  const up=fn=>setData(prev=>stampDataState(fn(prev),prev));
+
+  // categories/types
+  const addCat=c=>up(d=>({...d,categories:[...d.categories,{...c,id:uuid()}]}));
+  const editCat=(id,c)=>up(d=>({...d,categories:d.categories.map(x=>x.id===id?{...x,...c}:x)}));
+  const delCat=id=>up(d=>({...d,categories:d.categories.filter(x=>x.id!==id)}));
+  const addET=t=>up(d=>({...d,envTypes:[...d.envTypes,{...t,id:uuid()}]}));
+  const editET=(id,t)=>up(d=>({...d,envTypes:d.envTypes.map(x=>x.id===id?{...x,...t}:x)}));
+  const delET=id=>up(d=>({...d,envTypes:d.envTypes.filter(x=>x.id!==id)}));
+  const addPC=c=>up(d=>({...d,productCategories:[...d.productCategories,{...c,id:uuid()}]}));
+  const editPC=(id,c)=>up(d=>({...d,productCategories:d.productCategories.map(x=>x.id===id?{...x,...c}:x)}));
+  const delPC=id=>up(d=>({...d,productCategories:d.productCategories.filter(x=>x.id!==id)}));
+  const addCST=t=>up(d=>({...d,customStatusTypes:[...d.customStatusTypes,{...t,id:uuid()}]}));
+  const editCST=(id,t)=>up(d=>({...d,customStatusTypes:d.customStatusTypes.map(x=>x.id===id?{...x,...t}:x)}));
+  const delCST=id=>up(d=>({...d,customStatusTypes:d.customStatusTypes.filter(x=>x.id!==id)}));
+
+  // products
+  const addProduct=p=>up(d=>({...d,products:[...d.products,{...p,id:uuid()}]}));
+  const editProduct=(id,p)=>up(d=>({...d,products:d.products.map(x=>x.id===id?{...x,...p}:x)}));
+  const delProduct=id=>up(d=>({...d,products:d.products.filter(x=>x.id!==id)}));
+
+  // clients
+  const addClient=c=>up(d=>({...d,clients:[...d.clients,{...c,id:uuid(),environments:[],activityStatus:{hasEquip:false,bioPellets:false,cavaco:false,briquete:false,pellets:false,customFlags:{},custom:''}}]}));
+  const editClient=(id,c)=>up(d=>({...d,clients:d.clients.map(x=>x.id===id?{...x,...c}:x)}));
+  const delClient=id=>up(d=>{const orderIds=d.orders.filter(o=>o.clientId===id).map(o=>o.id);return{...d,clients:d.clients.filter(x=>x.id!==id),visits:d.visits.filter(v=>v.clientId!==id),orders:d.orders.filter(o=>o.clientId!==id),commissions:d.commissions.filter(c=>!orderIds.includes(c.orderId))};});
+
+  // environments
+  const addEnv=(cid,e)=>up(d=>{
+    const cl=d.clients.find(c=>c.id===cid);
+    const et=d.envTypes.find(t=>t.id===e.typeId);
+    const same=cl.environments.filter(x=>x.typeId===e.typeId).length;
+    return{...d,clients:d.clients.map(c=>c.id===cid?{...c,environments:[...c.environments,{...e,id:uuid(),label:`${et?.name||'Ambiente'} ${same+1}`}]}:c)};
+  });
+  const editEnv=(cid,eid,e)=>up(d=>({...d,clients:d.clients.map(c=>c.id===cid?{...c,environments:c.environments.map(x=>x.id===eid?{...x,...e}:x)}:c)}));
+  const delEnv=(cid,eid)=>up(d=>({...d,clients:d.clients.map(c=>c.id===cid?{...c,environments:c.environments.filter(e=>e.id!==eid)}:c)}));
+
+  const updateStatus=(cid,s)=>up(d=>({...d,clients:d.clients.map(c=>c.id===cid?{...c,activityStatus:{...c.activityStatus,...s}}:c)}));
+
+  // visits
+  const addVisit=v=>up(d=>({...d,visits:[{...v,id:uuid()},...d.visits]}));
+  const delVisit=id=>up(d=>({...d,visits:d.visits.filter(v=>v.id!==id)}));
+
+  // orders — auto-create commission when status→pago
+  const addOrder=o=>up(d=>({...d,orders:[{...o,id:uuid(),date:new Date().toISOString()},...d.orders]}));
+  const editOrder=(id,o)=>up(d=>{
+    const old=d.orders.find(x=>x.id===id);
+    const newOrders=d.orders.map(x=>x.id===id?{...x,...o}:x);
+    let newComm=[...d.commissions];
+    // auto-commission when paid with a referral
+    if(o.status==='pago'&&old?.status!=='pago'&&o.referralId){
+      const ref=d.referrals.find(r=>r.id===o.referralId);
+      const cl=d.clients.find(c=>c.id===o.clientId);
+      const already=d.commissions.find(c=>c.orderId===id);
+      if(!already&&ref){
+        newComm=[{
+          id:uuid(),referralId:o.referralId,referralName:ref.name,
+          orderId:id,clientId:o.clientId,clientName:cl?.name||'—',
+          amount:ref.commission||0,status:'pendente',
+          createdAt:new Date().toISOString(),paidAt:null,
+          orderDate:old?.date,orderTotal:o.total
+        },...newComm];
+      }
+    }
+    return{...d,orders:newOrders,commissions:newComm};
+  });
+  const delOrder=id=>up(d=>({...d,orders:d.orders.filter(x=>x.id!==id),commissions:d.commissions.filter(c=>c.orderId!==id)}));
+
+  // referrals
+  const addReferral=r=>up(d=>({...d,referrals:[{...r,id:uuid()},...d.referrals]}));
+  const editReferral=(id,r)=>up(d=>({...d,referrals:d.referrals.map(x=>x.id===id?{...x,...r}:x)}));
+  const delReferral=id=>up(d=>({...d,referrals:d.referrals.filter(x=>x.id!==id),orders:d.orders.map(o=>o.referralId===id?{...o,referralId:null}:o),leads:d.leads.map(l=>l.referralId===id?{...l,referralId:null}:l)}));
+
+  // leads (pre-cadastros)
+  const addLead=l=>up(d=>({...d,leads:[{...l,id:uuid(),createdAt:new Date().toISOString(),status:'active',convertedClientId:null},...d.leads]}));
+  const editLead=(id,l)=>up(d=>({...d,leads:d.leads.map(x=>x.id===id?{...x,...l}:x)}));
+  const delLead=id=>up(d=>({...d,leads:d.leads.filter(x=>x.id!==id)}));
+  const convertLead=(leadId)=>{
+    let newClientId=null;
+    up(d=>{
+      const lead=d.leads.find(l=>l.id===leadId);if(!lead)return d;
+      newClientId=uuid();
+      const newClient={id:newClientId,name:lead.name,phone1:lead.phone,phone2:'',categoryId:'',city:'',neighborhood:'',address:lead.reference||'',lat:lead.lat||0,lng:lead.lng||0,mapsLink:lead.lat?`https://maps.google.com/?q=${lead.lat},${lead.lng}`:'',notes:`Convertido de pré-cadastro. Referência: ${lead.reference||''}. Indicado por: ${lead.referralName||d.referrals.find(r=>r.id===lead.referralId)?.name||'—'}`,environments:[],activityStatus:{hasEquip:false,bioPellets:false,cavaco:false,briquete:false,pellets:false,customFlags:{},custom:''}};
+      return{...d,clients:[...d.clients,newClient],leads:d.leads.map(l=>l.id===leadId?{...l,status:'converted',convertedClientId:newClientId}:l)};
+    });
+    return newClientId;
+  };
+
+  // commissions
+  const payCommission=id=>up(d=>({...d,commissions:d.commissions.map(c=>c.id===id?{...c,status:'paga',paidAt:new Date().toISOString()}:c)}));
+
+  // company
+  const saveCompany=c=>up(d=>({...d,company:{...d.company,...c}}));
+  const saveRepresentative=r=>up(d=>({...d,representative:{...d.representative,...r}}));
+
+  // backup
+  const _dl=(blob,filename)=>{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),2000);};
+  const exportBackup=async(withPhotos=true)=>{
+    const dateStr=new Date().toISOString().split('T')[0];
+    if(withPhotos){
+      showToast('⏳ Preparando backup completo...');
+      const photos=await PS.getAll();
+      const pm={};photos.forEach(p=>pm[p.id]={data:p.data,name:p.name||''});
+      const blob=new Blob([JSON.stringify({...data,_photos:pm,_backupType:'full',_backupDate:new Date().toISOString()},null,2)],{type:'application/json'});
+      _dl(blob,`thermovisit-completo-${dateStr}.json`);
+      markBackup();showToast(`✅ Backup completo baixado! (${(blob.size/1024/1024).toFixed(1)} MB)`);
+    }else{
+      const blob=new Blob([JSON.stringify({...data,_backupType:'data-only',_backupDate:new Date().toISOString()},null,2)],{type:'application/json'});
+      _dl(blob,`thermovisit-dados-${dateStr}.json`);
+      markBackup();showToast(`✅ Backup de dados baixado! (${(blob.size/1024).toFixed(0)} KB)`);
+    }
+  };
+  const getBackupPreview=async file=>{
+    try{
+      const txt=await file.text();const bk=JSON.parse(txt);
+      const photoCount=bk._photos?Object.keys(bk._photos).length:0;
+      return{
+        valid:!!bk.clients,
+        clients:bk.clients?.length||0,
+        products:bk.products?.length||0,
+        visits:bk.visits?.length||0,
+        orders:bk.orders?.length||0,
+        leads:bk.leads?.length||0,
+        photoCount,
+        backupType:bk._backupType||'full',
+        backupDate:bk._backupDate||null,
+        raw:bk
+      };
+    }catch{return{valid:false};}
+  };
+  const importBackup=async bk=>{
+    try{
+      const{_photos,...appData}=bk;
+      if(!appData.clients)throw new Error('invalid');
+      if(_photos){
+        showToast('⏳ Restaurando fotos...');
+        for(const[id,p]of Object.entries(_photos))await PS.save(id,p.data,p.name);
+      }
+      setData(normalizeDataState(appData));
+      markBackup();showToast('✅ Backup restaurado com sucesso!');
+    }catch{showToast('⚠️ Arquivo inválido');}
+  };
+
+  return{data,toast,showToast,addCat,editCat,delCat,addET,editET,delET,addPC,editPC,delPC,addCST,editCST,delCST,addProduct,editProduct,delProduct,addClient,editClient,delClient,addEnv,editEnv,delEnv,updateStatus,addVisit,delVisit,addOrder,editOrder,delOrder,addReferral,editReferral,delReferral,addLead,editLead,delLead,convertLead,payCommission,saveCompany,saveRepresentative,exportBackup,getBackupPreview,importBackup,cloudCfg,saveCloudConfig,pullFromCloud,pushToCloud,syncState,cleanupOrphanPhotos};
+}
+
+/* ─── HELPERS ────────────────────────────────────────────────────────────── */
+const fd=s=>s?new Date(s).toLocaleDateString('pt-BR'):'—';
+const ft=s=>s?new Date(s).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
+const gurl=(lat,lng)=>`https://maps.google.com/?q=${lat},${lng}`;
+const fmtMoney=v=>'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const PAY_LABELS={avista:'À Vista',parcelado:'Parcelado',financiamento:'Financiamento bancário'};
+const PAY_CLASS={avista:'pay-avista',parcelado:'pay-parcelado',financiamento:'pay-financiamento'};
+const ORDER_STATUS={pago:'status-pago',pendente:'status-pendente',cancelado:'status-cancelado'};
+const ORDER_STATUS_LABEL={pago:'✅ Pago',pendente:'⏳ Pendente',cancelado:'❌ Cancelado'};
+function maskPhone(v){const d=v.replace(/\D/g,'').slice(0,11);if(d.length<=2)return d;if(d.length<=6)return`(${d.slice(0,2)}) ${d.slice(2)}`;if(d.length<=10)return`(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;return`(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;}
+function maskCNPJ(v){const d=v.replace(/\D/g,'').slice(0,14);if(d.length<=2)return d;if(d.length<=5)return`${d.slice(0,2)}.${d.slice(2)}`;if(d.length<=8)return`${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5)}`;if(d.length<=12)return`${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8)}`;return`${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`;}
+function cpText(t,cb){if(navigator.clipboard)navigator.clipboard.writeText(t).then(cb).catch(()=>{fb(t);cb();});else{fb(t);cb();}}
+function fb(t){const e=document.createElement('textarea');e.value=t;document.body.appendChild(e);e.select();document.execCommand('copy');document.body.removeChild(e);}
+function sendWhatsapp(text){window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');}
+const calUrl=(cl,v)=>{const dt=new Date(v.date);const s=dt.toISOString().replace(/[-:]/g,'').split('.')[0];const e=new Date(dt.getTime()+3600000).toISOString().replace(/[-:]/g,'').split('.')[0];return`https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent('Visita '+cl.name)}&dates=${s}/${e}&details=${encodeURIComponent(v.notes)}&location=${encodeURIComponent(cl.address||cl.city||'')}`;};
+
+/* ─── PRINT (Blob approach) ──────────────────────────────────────────────── */
+function openPrint(title,bodyHtml,company,rep){
+  const co=company||{};const r=rep||{};
+  const hdr=co.name?`<div style="border-bottom:2px solid #0f4523;margin-bottom:12px;padding-bottom:10px;display:flex;justify-content:space-between"><div><div style="font-size:16px;font-weight:bold;color:#0f4523">${co.name}</div>${co.cnpj?`<div style="font-size:10px;color:#666">CNPJ: ${co.cnpj}</div>`:''}${co.phone?`<div style="font-size:10px;color:#666">📞 ${co.phone}</div>`:''}</div><div style="text-align:right;font-size:10px;color:#666">${r.name?`Rep.: <b>${r.name}</b><br>`:''}${r.cities?.length?`Região: ${r.cities.join(', ')}`:''}</div></div>`:'';
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${title}</title><style>body{font-family:Arial,sans-serif;font-size:12px;margin:24px;color:#111}h1{font-size:16px;margin-bottom:4px;color:#0f4523}.sub{font-size:10px;color:#888;margin-bottom:14px}table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#0f4523;color:#fff;padding:6px 8px;text-align:left;font-size:11px}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;font-size:11px}tr:nth-child(even)td{background:#f5f9f5}.total-row td{font-weight:bold;background:#e8f5ee!important}.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold}.bg{background:#d1fae5;color:#065f46}.bb{background:#dbeafe;color:#1e40af}.bp{background:#ede9fe;color:#5b21b6}.footer{margin-top:20px;font-size:10px;color:#aaa;border-top:1px solid #ddd;padding-top:8px}@media print{button{display:none}}</style></head><body>${hdr}<h1>📄 ${title}</h1><div class="sub">Gerado em ${new Date().toLocaleString('pt-BR')}</div>${bodyHtml}<div class="footer">${co.name||'Caixeiro Viajante'}</div><script>setTimeout(()=>window.print(),400);<\/script></body></html>`;
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const w=window.open(url,'_blank');
+  setTimeout(()=>URL.revokeObjectURL(url),15000);
+  if(!w){
+    const iframe=document.createElement('iframe');
+    iframe.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px';
+    document.body.appendChild(iframe);
+    iframe.contentDocument.open();iframe.contentDocument.write(html);iframe.contentDocument.close();
+    setTimeout(()=>{iframe.contentWindow.print();setTimeout(()=>document.body.removeChild(iframe),2000);},500);
+  }
+}
+function toWA(title,lines,co,rep){
+  const h=co?.name?`*${co.name}*${co.phone?' | 📞 '+co.phone:''}${rep?.name?'\nRep: *'+rep.name+'*':''}${rep?.cities?.length?' | '+rep.cities.slice(0,3).join(', ')+(rep.cities.length>3?'…':''):''}\n${'─'.repeat(28)}\n`:'';
+  return`${h}*${title}*\n_${new Date().toLocaleString('pt-BR')}_\n\n${lines.join('\n')}\n\n${'─'.repeat(28)}\n_Caixeiro Viajante_`;
+}
+
+/* ─── BASE COMPONENTS ────────────────────────────────────────────────────── */
+function Toast({msg}){return msg?<div className="toast">{msg}</div>:null}
+function Confirm({msg,onOk,onCancel}){return(<div className="ov" onClick={onCancel}><div className="modal" onClick={e=>e.stopPropagation()} style={{borderRadius:18}}><div className="mhdl"/><p style={{fontSize:15,fontWeight:700,marginBottom:7}}>{msg}</p><p style={{fontSize:13,color:'var(--text2)',marginBottom:14}}>Esta ação não pode ser desfeita.</p><div className="cbar"><button className="btn bg" style={{flex:1}} onClick={onCancel}>Cancelar</button><button className="btn bd" style={{flex:1}} onClick={onOk}>Confirmar</button></div></div></div>);}
+function Hdr({title,onBack,right}){return(<div className="hdr">{onBack&&<button className="hbtn" onClick={onBack}>←</button>}<span className="hdr-t">{title}</span>{right}</div>);}
+function Nav({page,go}){
+  const items=[['home','🏠','Início'],['clients','👥','Clientes'],['orders','🛒','Vendas'],['reports','📊','Relatórios'],['empresa','🏢','Empresa']];
+  const cur=items.map(x=>x[0]).includes(page)?page:'home';
+  return(<div className="nav">{items.map(([k,ic,lb])=><div key={k} className={`ni${cur===k?' on':''}`} onClick={()=>go(k)}><span style={{fontSize:20}}>{ic}</span><span>{lb}</span></div>)}</div>);
+}
+function Lightbox({src,onClose}){return(<div className="lightbox" onClick={onClose}><img src={src} alt=""/><button className="btn bg" style={{color:'#fff',borderColor:'rgba(255,255,255,.3)'}}>✕ Fechar</button></div>);}
+
+/* ─── BACKUP REMINDER ────────────────────────────────────────────────────── */
+function BackupReminder({onBackup,onDismiss}){
+  return(
+    <div className="backup-modal">
+      <div className="backup-box">
+        <div style={{fontSize:48,marginBottom:8}}>⏰</div>
+        <div style={{fontSize:18,fontWeight:800,marginBottom:8,color:'var(--pd)'}}>Hora do backup!</div>
+        <div style={{fontSize:14,color:'var(--text2)',marginBottom:16,lineHeight:1.5}}>Já fazem mais de 3 horas desde o último backup. Escolha como salvar:</div>
+        <button className="btn bp" style={{width:'100%',marginBottom:8}} onClick={()=>onBackup(true)}>📦 Backup completo (dados + fotos)</button>
+        <button className="btn bo" style={{width:'100%',marginBottom:10}} onClick={()=>onBackup(false)}>📄 Só os dados (mais rápido)</button>
+        <button className="btn bg" style={{width:'100%'}} onClick={onDismiss}>Lembrar mais tarde</button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── CLIENT AUTOCOMPLETE ────────────────────────────────────────────────── */
+function ClientSearch({clients,value,onChange}){
+  const [q,setQ]=useState('');const [open,setOpen]=useState(false);
+  const ref=useRef(null);
+  const sel=clients.find(c=>c.id===value);
+  const filtered=useMemo(()=>clients.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.city?.toLowerCase().includes(q.toLowerCase())).slice(0,12),[clients,q]);
+  useEffect(()=>{
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
+    document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);
+  },[]);
+  return(
+    <div className="autocomplete-wrap" ref={ref}>
+      <input value={sel?sel.name:q} onChange={e=>{setQ(e.target.value);setOpen(true);if(sel)onChange('');}} onFocus={()=>setOpen(true)} placeholder="Buscar cliente…" style={{border:'1.5px solid var(--border)',borderRadius:9,padding:'10px 13px',background:'var(--card)',width:'100%',fontSize:15}}/>
+      {open&&filtered.length>0&&(
+        <div className="autocomplete-drop">
+          {filtered.map(c=>(
+            <div key={c.id} className="autocomplete-item" onMouseDown={()=>{onChange(c.id);setQ(c.name);setOpen(false);}}>
+              <span style={{fontWeight:600}}>{c.name}</span>
+              {c.city&&<span style={{fontSize:12,color:'var(--text3)'}}> — {c.city}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── PHOTO UPLOADER ─────────────────────────────────────────────────────── */
+function PhotoImg({pid,style,onClick}){
+  const [src,setSrc]=useState(null);
+  useEffect(()=>{if(pid)PS.get(pid).then(d=>d&&setSrc(d));},[pid]);
+  if(!src)return <div style={{...style,background:'var(--bg)',borderRadius:8,border:'1px solid var(--border)'}}/>;
+  return <img src={src} style={{...style,objectFit:'cover',borderRadius:8}} onClick={onClick} alt=""/>;
+}
+function PhotoUploader({photoIds,onChange,label,contextName}){
+  const ref=useRef(null);const [lb,setLb]=useState(null);const [previews,setPreviews]=useState({});
+  const [saving,setSaving]=useState(false);const [saveProgress,setSaveProgress]=useState('');
+  useEffect(()=>{(photoIds||[]).forEach(id=>{if(!previews[id])PS.get(id).then(d=>{if(d)setPreviews(p=>({...p,[id]:d}));});});},[photoIds]);
+  const handle=async files=>{
+    const newIds=[];
+    for(const f of files){
+      if(!f.type.startsWith('image/'))continue;
+      const id=uuid();
+      const data=await compressImage(f);
+      await PS.save(id,data,f.name);
+      setPreviews(p=>({...p,[id]:data}));
+      newIds.push(id);
+    }
+    onChange([...(photoIds||[]),...newIds]);
+  };
+  const remove=async id=>{await PS.del(id);setPreviews(p=>{const n={...p};delete n[id];return n;});onChange((photoIds||[]).filter(x=>x!==id));};
+  const saveSingleToGallery=async(id)=>{
+    const data=previews[id];if(!data)return;
+    const ts=new Date().toISOString().replace(/[-:T]/g,'').slice(0,15);
+    const prefix=(contextName||'foto').replace(/[^a-z0-9]/gi,'_').toLowerCase().slice(0,20);
+    const filename=`thermovisit_${prefix}_${ts}.jpg`;
+    const result=await savePhotoToGallery(data,filename);
+    if(result==='downloaded')setSaveProgress('📥 Foto salva em Downloads!');
+    else setSaveProgress('✅ Foto compartilhada!');
+    setTimeout(()=>setSaveProgress(''),3000);
+  };
+  const saveAllToGallery=async()=>{
+    if(!photoIds||!photoIds.length)return;
+    setSaving(true);setSaveProgress(`Salvando 1 de ${photoIds.length}...`);
+    const prefix=(contextName||'fotos').replace(/[^a-z0-9]/gi,'_').toLowerCase().slice(0,20);
+    const n=await saveAllPhotosToGallery(photoIds,prefix,(done,total)=>setSaveProgress(`Salvando ${done} de ${total}...`));
+    setSaving(false);setSaveProgress(`✅ ${n} foto(s) salvas!`);
+    setTimeout(()=>setSaveProgress(''),4000);
+  };
+  return(
+    <div>
+      {label&&<div className="stitle" style={{marginBottom:8}}>{label}</div>}
+      <div className="photo-grid">
+        {(photoIds||[]).map(id=>(
+          <div key={id} style={{position:'relative'}}>
+            <img src={previews[id]||''} className="photo-thumb" onClick={()=>previews[id]&&setLb({src:previews[id],id})} alt="" style={{background:'var(--bg)'}}/>
+            <button onClick={()=>remove(id)} style={{position:'absolute',top:3,right:3,background:'rgba(0,0,0,.6)',color:'#fff',borderRadius:'50%',width:20,height:20,fontSize:11,display:'flex',alignItems:'center',justifyContent:'center',border:'none',cursor:'pointer'}}>✕</button>
+          </div>
+        ))}
+        <div className="photo-upload" onClick={()=>ref.current.click()}><span style={{fontSize:22}}>📷</span><span>Adicionar</span></div>
+      </div>
+      {photoIds&&photoIds.length>0&&(
+        <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+          <button className="btn bg bs" onClick={saveAllToGallery} disabled={saving} style={{fontSize:12}}>
+            {saving?'⏳ Salvando...':'📥 Salvar todas na galeria'}
+          </button>
+        </div>
+      )}
+      {saveProgress&&<div style={{fontSize:12,color:'var(--primary)',fontWeight:600,marginTop:5}}>{saveProgress}</div>}
+      <input ref={ref} type="file" accept="image/*" multiple capture="environment" style={{display:'none'}} onChange={e=>handle(Array.from(e.target.files))}/>
+      {lb&&(
+        <div className="lightbox" onClick={()=>setLb(null)}>
+          <img src={lb.src} alt="" onClick={e=>e.stopPropagation()}/>
+          <div style={{display:'flex',gap:10}} onClick={e=>e.stopPropagation()}>
+            <button className="btn bg" style={{color:'#fff',borderColor:'rgba(255,255,255,.3)'}} onClick={()=>setLb(null)}>✕ Fechar</button>
+            <button className="btn bp" style={{fontSize:13}} onClick={()=>saveSingleToGallery(lb.id)}>📥 Salvar na galeria</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── MAP ────────────────────────────────────────────────────────────────── */
+function MapPicker({initLat,initLng,onSave,onCancel}){
+  const divRef=useRef(null);const mapRef=useRef(null);const mrkRef=useRef(null);
+  const myDotRef=useRef(null);const myCircRef=useRef(null);const watchRef=useRef(null);
+  const [coords,setCoords]=useState(initLat&&initLng?{lat:+initLat,lng:+initLng}:null);
+  const [myPos,setMyPos]=useState(null);const [tracking,setTracking]=useState(false);
+  const [gpsErr,setGpsErr]=useState(null);const [loading,setLoading]=useState(true);
+  const mkIco=()=>L.divIcon({className:'',html:`<div style="width:30px;height:30px;background:#1a6b3a;border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,.45)"></div>`,iconSize:[30,30],iconAnchor:[15,30]});
+  const placePin=(lat,lng,map)=>{
+    const r={lat:+lat.toFixed(6),lng:+lng.toFixed(6)};setCoords(r);const m=map||mapRef.current;if(!m)return;
+    if(mrkRef.current){mrkRef.current.setLatLng([lat,lng]);}
+    else{const mk=L.marker([lat,lng],{icon:mkIco(),draggable:true}).addTo(m);mrkRef.current=mk;mk.on('dragend',()=>{const p=mk.getLatLng();setCoords({lat:+p.lat.toFixed(6),lng:+p.lng.toFixed(6)});setTracking(false);});}
+  };
+  const updateDot=(lat,lng,acc,map)=>{
+    const m=map||mapRef.current;if(!m)return;
+    if(myDotRef.current){myDotRef.current.setLatLng([lat,lng]);myCircRef.current?.setLatLng([lat,lng]).setRadius(acc);}
+    else{myDotRef.current=L.circleMarker([lat,lng],{radius:9,color:'#fff',weight:2,fillColor:'#2563eb',fillOpacity:1,className:'live-dot'}).addTo(m);if(acc>5)myCircRef.current=L.circle([lat,lng],{radius:acc,color:'#2563eb',fillColor:'#2563eb',fillOpacity:.08,weight:1}).addTo(m);}
+  };
+  useEffect(()=>{
+    if(!divRef.current||mapRef.current)return;
+    const map=L.map(divRef.current,{zoomControl:true}).setView([initLat?+initLat:-15.78,initLng?+initLng:-47.93],initLat?15:5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{attribution:'© CARTO',maxZoom:19}).addTo(map);
+    mapRef.current=map;
+    if(initLat&&initLng)placePin(+initLat,+initLng,map);
+    map.on('click',e=>{placePin(e.latlng.lat,e.latlng.lng,map);setTracking(false);});
+    if(navigator.geolocation){
+      watchRef.current=navigator.geolocation.watchPosition(
+        pos=>{const{latitude:lat,longitude:lng,accuracy:acc}=pos.coords;setMyPos({lat,lng,acc});updateDot(lat,lng,acc,map);setLoading(false);setCoords(prev=>{if(!prev&&!initLat){placePin(lat,lng,map);map.setView([lat,lng],17);}return prev;});},
+        err=>{setGpsErr(err.code===1?'Permissão negada':'GPS indisponível');setLoading(false);},
+        {enableHighAccuracy:true,maximumAge:3000,timeout:15000}
+      );
+    }else{setGpsErr('GPS não suportado');setLoading(false);}
+    return()=>{map.remove();mapRef.current=null;mrkRef.current=null;myDotRef.current=null;myCircRef.current=null;if(watchRef.current!=null)navigator.geolocation.clearWatch(watchRef.current);};
+  },[]);
+  useEffect(()=>{if(!tracking||!myPos||!mapRef.current)return;mapRef.current.setView([myPos.lat,myPos.lng],17);},[tracking,myPos]);
+  const useMine=()=>{if(!myPos)return;placePin(myPos.lat,myPos.lng);mapRef.current?.setView([myPos.lat,myPos.lng],17);setTracking(true);};
+  return(
+    <div className="mapov">
+      <div className="maphdr"><button className="hbtn" onClick={onCancel}>✕</button><span className="maphdr-t">📍 Selecionar Localização</span></div>
+      <div style={{background:myPos?'#e8f5ee':'#fef3c7',borderBottom:'1px solid #d1e7d4',padding:'7px 14px',display:'flex',alignItems:'center',gap:8,flexShrink:0,fontSize:13}}>
+        <span style={{fontSize:16}}>{loading?'⏳':myPos?'📡':'⚠️'}</span>
+        <span style={{fontWeight:600,color:myPos?'#0f4523':'#92400e',flex:1}}>{loading?'Buscando GPS…':gpsErr||(myPos?`±${Math.round(myPos.acc||0)}m`:'Sem GPS')}</span>
+        {myPos&&<button onClick={()=>setTracking(x=>!x)} style={{background:tracking?'#1a6b3a':'transparent',color:tracking?'#fff':'#1a6b3a',border:'1.5px solid #1a6b3a',borderRadius:20,padding:'4px 12px',fontSize:12,fontWeight:700,cursor:'pointer'}}>{tracking?'🎯 Seguindo':'🎯 Seguir'}</button>}
+      </div>
+      <div style={{position:'relative',flex:1,minHeight:0}}>
+        <div ref={divRef} style={{width:'100%',height:'100%'}}/>
+        {myPos&&<button onClick={useMine} style={{position:'absolute',bottom:14,right:14,zIndex:510,background:'#fff',border:'2px solid var(--primary)',borderRadius:12,padding:'9px 14px',fontSize:13,fontWeight:700,color:'var(--primary)',display:'flex',alignItems:'center',gap:6,boxShadow:'0 2px 10px rgba(0,0,0,.18)',cursor:'pointer'}}>📍 Marcar minha posição</button>}
+      </div>
+      <div className="mapftr">
+        <div className="mapcoords">{coords?`✅ ${coords.lat}, ${coords.lng}  —  arraste para ajustar`:'Toque no mapa ou use "Marcar minha posição"'}</div>
+        <div style={{display:'flex',gap:8}}><button className="btn bg" style={{flex:1}} onClick={onCancel}>Cancelar</button><button className="btn bp" style={{flex:2,opacity:coords?1:.4}} disabled={!coords} onClick={()=>onSave(coords)}>✅ Salvar localização</button></div>
+      </div>
+    </div>
+  );
+}
+function MiniMap({lat,lng}){
+  const divRef=useRef(null);const mapRef=useRef(null);
+  useEffect(()=>{
+    if(!divRef.current||mapRef.current)return;
+    const map=L.map(divRef.current,{zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,attributionControl:false}).setView([+lat,+lng],15);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(map);
+    L.marker([+lat,+lng],{icon:L.divIcon({className:'',html:`<div style="width:22px;height:22px;background:#1a6b3a;border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 6px rgba(0,0,0,.4)"></div>`,iconSize:[22,22],iconAnchor:[11,22]})}).addTo(map);
+    mapRef.current=map;return()=>{map.remove();mapRef.current=null;};
+  },[lat,lng]);
+  return <div ref={divRef} className="minimap"/>;
+}
+function LocCard({lat,lng,mapsLink,showToast,onEdit}){
+  const url=mapsLink||gurl(lat,lng);
+  return(<div className="locbox"><div className="locbox-t">📍 Localização</div><MiniMap lat={+lat} lng={+lng}/><div style={{fontSize:12,color:'var(--text2)',fontFamily:'monospace',marginBottom:4}}>{(+lat).toFixed(5)}, {(+lng).toFixed(5)}</div>{mapsLink&&<div style={{fontSize:11,color:'var(--text3)',wordBreak:'break-all',marginBottom:9}}>{mapsLink}</div>}<div style={{display:'flex',gap:7,flexWrap:'wrap'}}><button className="btn bp bs" style={{flex:1}} onClick={()=>window.open(url,'_blank')}>🗺️ Abrir Maps</button><button className="btn bg bs" style={{flex:1}} onClick={()=>cpText(url,()=>showToast('🔗 Copiado!'))}>🔗 Copiar</button>{onEdit&&<button className="btn bg bs" onClick={onEdit}>✏️</button>}</div></div>);
+}
+
+/* ─── GENERIC CRUD LIST ──────────────────────────────────────────────────── */
+function CrudList({items,label,onAdd,onEdit,onDel,showToast,labelField='name'}){
+  const [f,setF]=useState({name:''});const [eid,setEid]=useState(null);const [conf,setConf]=useState(null);
+  const reset=()=>{setF({name:''});setEid(null);};
+  const go=()=>{if(!f.name){showToast('⚠️ Nome obrigatório');return;}if(eid){onEdit(eid,{name:f.name});showToast('✅ Atualizado');}else{onAdd({name:f.name});showToast('✅ Criado');}reset();};
+  return(<div>
+    <div className="cc" style={{marginBottom:10}}><div style={{fontWeight:700,fontSize:14,marginBottom:10}}>{eid?'Editar':'Novo'} {label}</div><div className="field"><label>Nome *</label><input value={f.name} onChange={e=>setF({name:e.target.value})} placeholder={label}/></div><div className="cbar">{eid&&<button className="btn bg" style={{flex:1}} onClick={reset}>Cancelar</button>}<button className="btn bp" style={{flex:eid?1:'100%'}} onClick={go}>{eid?'Salvar':'+ Adicionar'}</button></div></div>
+    {items.map(it=><div key={it.id} className="cc"><div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><div style={{fontWeight:700}}>{it[labelField]||it.name||it.label}</div><div style={{display:'flex',gap:5}}><button className="btn bg bs" onClick={()=>{setF({name:it[labelField]||it.name||it.label});setEid(it.id);}}>✏️</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(it.id)}>🗑️</button></div></div></div>)}
+    {conf&&<Confirm msg={`Excluir "${items.find(x=>x.id===conf)?.[labelField]||'item'}"?`} onOk={()=>{onDel(conf);setConf(null);showToast('Removido');}} onCancel={()=>setConf(null)}/>}
+  </div>);
+}
+
+/* ─── REPORTS ────────────────────────────────────────────────────────────── */
+function ReportsPage({store}){
+  const {data,showToast}=store;
+  const [type,setType]=useState('orders');
+  const [dateFrom,setDateFrom]=useState('');const [dateTo,setDateTo]=useState('');
+  const [payFilter,setPayFilter]=useState('');const [catFilter,setCatFilter]=useState('');
+  const [intentFilter,setIntentFilter]=useState('');const [statusFilter,setStatusFilter]=useState('');
+  const co=data.company;const rep=data.representative;
+  const inRange=s=>{if(!s)return true;const d=s.split('T')[0];if(dateFrom&&d<dateFrom)return false;if(dateTo&&d>dateTo)return false;return true;};
+  const fOrders=useMemo(()=>data.orders.filter(o=>{if(!inRange(o.date))return false;if(payFilter&&o.paymentType!==payFilter)return false;if(statusFilter&&o.status!==statusFilter)return false;return true;}),[data.orders,dateFrom,dateTo,payFilter,statusFilter]);
+  const fClients=useMemo(()=>data.clients.filter(c=>{if(catFilter&&c.categoryId!==catFilter)return false;if(intentFilter){const st=c.activityStatus||{};if(intentFilter==='hasEquip'&&!st.hasEquip)return false;if(intentFilter==='bioPellets'&&!st.bioPellets)return false;if(intentFilter==='cavaco'&&!st.cavaco)return false;if(intentFilter==='briquete'&&!st.briquete)return false;if(intentFilter==='pellets'&&!st.pellets)return false;if(intentFilter.startsWith('c_')&&!st.customFlags?.[intentFilter.slice(2)])return false;}return true;}),[data.clients,catFilter,intentFilter]);
+  const fVisits=useMemo(()=>data.visits.filter(v=>inRange(v.date)),[data.visits,dateFrom,dateTo]);
+  const fFinancing=useMemo(()=>data.orders.filter(o=>o.paymentType==='financiamento'&&(!statusFilter||o.finStatus===statusFilter)),[data.orders,statusFilter]);
+  const fLeads=useMemo(()=>data.leads.filter(l=>!catFilter||data.referrals.find(r=>r.id===l.referralId)?.id===catFilter),[data.leads,catFilter]);
+  const totalO=fOrders.reduce((a,o)=>a+(o.total||0),0);
+  const getClient=id=>data.clients.find(c=>c.id===id);
+  const getReferral=id=>data.referrals.find(r=>r.id===id);
+
+  const printOrders=()=>{
+    const rows=fOrders.map(o=>{const cl=getClient(o.clientId);const env=cl?.environments.find(e=>e.id===o.envId);const pc={avista:'badge bg',parcelado:'badge bb',financiamento:'badge bp'}[o.paymentType]||'badge';return`<tr><td>${fd(o.date)}</td><td>${cl?.name||'—'}</td><td>${env?.label||'—'}</td><td><span class="${pc}">${PAY_LABELS[o.paymentType]}</span></td><td>${ORDER_STATUS_LABEL[o.status]||o.status||'—'}</td><td>${(o.items||[]).length}</td><td><b>${fmtMoney(o.total)}</b></td></tr>`;}).join('');
+    openPrint('Relatório de Pedidos',`<table><thead><tr><th>Data</th><th>Cliente</th><th>Ambiente</th><th>Pagamento</th><th>Status</th><th>Itens</th><th>Total</th></tr></thead><tbody>${rows}<tr class="total-row"><td colspan="6"><b>Total (${fOrders.length})</b></td><td><b>${fmtMoney(totalO)}</b></td></tr></tbody></table>`,co,rep);
+  };
+  const waOrders=()=>{const lines=fOrders.map(o=>{const cl=getClient(o.clientId);return`📦 *${cl?.name||'—'}* — ${fd(o.date)}\n   💳 ${PAY_LABELS[o.paymentType]} | ${ORDER_STATUS_LABEL[o.status]||'—'} | 💰 ${fmtMoney(o.total)}`;});lines.push(`\n💰 *Total: ${fmtMoney(totalO)}* (${fOrders.length} pedidos)`);sendWhatsapp(toWA('Relatório de Pedidos',lines,co,rep));};
+
+  const printClients=()=>{
+    const rows=fClients.map(c=>{const cat=data.categories.find(x=>x.id===c.categoryId);const st=c.activityStatus||{};const ints=[st.bioPellets&&'Bio Pellets',st.cavaco&&'Cavaco',st.briquete&&'Briquete',st.pellets&&'Pellets'].filter(Boolean).join(', ')||'—';return`<tr><td>${c.name}</td><td>${c.phone1}</td><td>${c.city||'—'}</td><td>${cat?.name||'—'}</td><td>${ints}</td></tr>`;}).join('');
+    openPrint(`Clientes (${fClients.length})`,`<table><thead><tr><th>Nome</th><th>Telefone</th><th>Cidade</th><th>Categoria</th><th>Interesses</th></tr></thead><tbody>${rows}</tbody></table>`,co,rep);
+  };
+  const waClients=()=>{const lines=fClients.map(c=>{const cat=data.categories.find(x=>x.id===c.categoryId);return`👤 *${c.name}* — ${cat?.name||'—'}\n   📞 ${c.phone1}${c.city?' | 📍 '+c.city:''}`;});sendWhatsapp(toWA(`Clientes (${fClients.length})`,lines,co,rep));};
+
+  const printVisits=()=>{
+    const rows=fVisits.map(v=>{const cl=getClient(v.clientId);return`<tr><td>${fd(v.date)} ${ft(v.date)}</td><td>${cl?.name||'—'}</td><td>${v.notes}</td><td>${v.nextContact?fd(v.nextContact+'T00:00'):'—'}</td></tr>`;}).join('');
+    openPrint(`Visitas (${fVisits.length})`,`<table><thead><tr><th>Data</th><th>Cliente</th><th>Notas</th><th>Próx. Contato</th></tr></thead><tbody>${rows}</tbody></table>`,co,rep);
+  };
+
+  const FIN_STATUS=[['pendente','⏳ Em análise'],['aprovado','✅ Aprovado'],['reprovado','❌ Reprovado'],['liberado','🏦 Liberado']];
+  const printFinancing=()=>{
+    const rows=fFinancing.map(o=>{const cl=getClient(o.clientId);const sl={pendente:'Em análise',aprovado:'Aprovado',reprovado:'Reprovado',liberado:'Liberado'}[o.finStatus]||'—';return`<tr><td>${fd(o.date)}</td><td>${cl?.name||'—'}</td><td>${cl?.phone1||'—'}</td><td>${sl}</td><td>${o.installments||'—'}×</td><td><b>${fmtMoney(o.total)}</b></td></tr>`;}).join('');
+    openPrint('Financiamentos',`<table><thead><tr><th>Data</th><th>Cliente</th><th>Telefone</th><th>Status</th><th>Parcelas</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>`,co,rep);
+  };
+
+  const printLeads=()=>{
+    const rows=fLeads.map(l=>{const ref=getReferral(l.referralId);return`<tr><td>${fd(l.createdAt)}</td><td>${l.name}</td><td>${l.phone}</td><td>${l.reference||'—'}</td><td>${l.referralName||ref?.name||'—'}</td><td>${l.status==='converted'?'✅ Convertido':'🔵 Ativo'}</td><td>${l.lat?`${(+l.lat).toFixed(5)}, ${(+l.lng).toFixed(5)}`:'—'}</td></tr>`;}).join('');
+    openPrint(`Pré-cadastros / Leads (${fLeads.length})`,`<table><thead><tr><th>Data</th><th>Nome</th><th>Telefone</th><th>Referência</th><th>Indicado por</th><th>Status</th><th>GPS</th></tr></thead><tbody>${rows}</tbody></table>`,co,rep);
+  };
+  const waLeads=()=>{const lines=fLeads.map(l=>{const ref=getReferral(l.referralId);return`📋 *${l.name}* — ${l.phone}\n   📍 ${l.reference||'—'} | 🤝 ${ref?.name||'—'}\n   ${l.status==='converted'?'✅ Convertido':'🔵 Ativo'}`;});sendWhatsapp(toWA(`Pré-cadastros (${fLeads.length})`,lines,co,rep));};
+
+  return(<>
+    <Hdr title="📊 Relatórios"/>
+    <div className="content">
+      <div className="tabs">
+        {[['orders','📦 Pedidos'],['clients','👥 Clientes'],['visits','📋 Visitas'],['financing','🏦 Financiam.'],['leads','📋 Pré-cadastros']].map(([k,l])=><div key={k} className={`tab${type===k?' on':''}`} onClick={()=>setType(k)}>{l}</div>)}
+      </div>
+
+      {type==='orders'&&(<div>
+        <div className="sbox"><div className="sbox-title">🔎 Filtros</div>
+          <div className="row2"><div className="field"><label>Data Início</label><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></div><div className="field"><label>Data Fim</label><input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}/></div></div>
+          <div className="row2">
+            <div className="field"><label>Pagamento</label><select value={payFilter} onChange={e=>setPayFilter(e.target.value)}><option value="">Todos</option><option value="avista">À Vista</option><option value="parcelado">Parcelado</option><option value="financiamento">Financiamento</option></select></div>
+            <div className="field"><label>Status</label><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="">Todos</option><option value="pendente">Pendente</option><option value="pago">Pago</option><option value="cancelado">Cancelado</option></select></div>
+          </div>
+        </div>
+        <div className="summary-box"><div style={{fontSize:12,fontWeight:600,marginBottom:4,opacity:.8}}>TOTAL</div><div style={{fontSize:22,fontWeight:800}}>{fmtMoney(totalO)}</div><div style={{fontSize:13,opacity:.8}}>{fOrders.length} pedido(s)</div></div>
+        <div className="export-bar no-print"><button className="btn bp bs" onClick={printOrders}>🖨️ PDF</button><button className="btn bgreen bs" onClick={waOrders}>💬 WhatsApp</button></div>
+        {fOrders.map(o=>{const cl=getClient(o.clientId);if(!cl)return null;return(<div key={o.id} className="report-row"><div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span style={{fontWeight:700}}>{cl.name}</span><span style={{fontSize:12,color:'var(--text3)'}}>{fd(o.date)}</span></div><div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:4}}><span className={`tag ${PAY_CLASS[o.paymentType]||''}`}>{PAY_LABELS[o.paymentType]}</span>{o.status&&<span className={`tag ${ORDER_STATUS[o.status]||''}`}>{ORDER_STATUS_LABEL[o.status]}</span>}</div><div style={{fontWeight:800,fontSize:15,color:'var(--primary)'}}>{fmtMoney(o.total)}</div></div>);})}
+      </div>)}
+
+      {type==='clients'&&(<div>
+        <div className="sbox"><div className="sbox-title">🔎 Filtros</div>
+          <div className="field"><label>Categoria</label><select value={catFilter} onChange={e=>setCatFilter(e.target.value)}><option value="">Todas</option>{data.categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+          <div className="field"><label>Intenção de Compra</label><select value={intentFilter} onChange={e=>setIntentFilter(e.target.value)}><option value="">Todas</option><option value="hasEquip">Já possui equip.</option><option value="bioPellets">Bio Pellets</option><option value="cavaco">Cavaco</option><option value="briquete">Briquete</option><option value="pellets">Pellets</option>{data.customStatusTypes.map(t=><option key={t.id} value={`c_${t.id}`}>{t.label}</option>)}</select></div>
+        </div>
+        <div className="export-bar no-print"><button className="btn bp bs" onClick={printClients}>🖨️ PDF</button><button className="btn bgreen bs" onClick={waClients}>💬 WhatsApp</button></div>
+        <div style={{fontSize:13,color:'var(--text2)',marginBottom:10}}>{fClients.length} cliente(s)</div>
+        {fClients.map(c=>{const cat=data.categories.find(x=>x.id===c.categoryId);const st=c.activityStatus||{};const tags=[st.bioPellets&&'Bio Pellets',st.cavaco&&'Cavaco',st.briquete&&'Briquete',st.pellets&&'Pellets'].filter(Boolean);data.customStatusTypes.forEach(t=>{if(st.customFlags?.[t.id])tags.push(t.label);});return(<div key={c.id} className="report-row"><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700}}>{c.name}</span>{cat&&<span className="tag" style={{background:'var(--pl)',color:'var(--pd)'}}>{cat.name}</span>}</div><div style={{fontSize:13,color:'var(--text2)',marginBottom:4}}>📞 {c.phone1}{c.city?' | 📍 '+c.city:''}</div>{tags.length>0&&<div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{tags.map((t,i)=><span key={i} className="tag" style={{background:'var(--acl)',color:'var(--accent)'}}>{t}</span>)}</div>}</div>);})}
+      </div>)}
+
+      {type==='visits'&&(<div>
+        <div className="sbox"><div className="sbox-title">🔎 Por Data</div><div className="row2"><div className="field"><label>Início</label><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></div><div className="field"><label>Fim</label><input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}/></div></div></div>
+        <div className="export-bar no-print"><button className="btn bp bs" onClick={printVisits}>🖨️ PDF</button><button className="btn bgreen bs" onClick={()=>{const lines=fVisits.map(v=>{const cl=getClient(v.clientId);return`📋 *${cl?.name||'—'}* — ${fd(v.date)} ${ft(v.date)}\n   ${v.notes.slice(0,80)}${v.notes.length>80?'…':''}${v.nextContact?'\n   🔔 '+fd(v.nextContact+'T00:00'):''}`;});sendWhatsapp(toWA('Visitas',lines,co,rep));}}>💬 WhatsApp</button></div>
+        {fVisits.map(v=>{const cl=getClient(v.clientId);if(!cl)return null;return(<div key={v.id} className="report-row"><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700}}>{cl.name}</span><span style={{fontSize:12,color:'var(--text3)'}}>{fd(v.date)} {ft(v.date)}</span></div><div style={{fontSize:13,color:'var(--text2)',marginBottom:4}}>{v.notes}</div>{v.nextContact&&<div style={{fontSize:12,color:'var(--accent)',fontWeight:600}}>🔔 {fd(v.nextContact+'T00:00')}</div>}</div>);})}
+      </div>)}
+
+      {type==='financing'&&(<div>
+        <div className="sbox"><div className="sbox-title">🏦 Status do Financiamento</div><div className="field"><label>Filtrar por status</label><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="">Todos</option>{FIN_STATUS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div></div>
+        <div className="export-bar no-print"><button className="btn bp bs" onClick={printFinancing}>🖨️ PDF</button></div>
+        {fFinancing.map(o=>{const cl=getClient(o.clientId);if(!cl)return null;const sl={pendente:'⏳ Em análise',aprovado:'✅ Aprovado',reprovado:'❌ Reprovado',liberado:'🏦 Liberado'}[o.finStatus]||'⏳ Em análise';return(<div key={o.id} className="order-card"><div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}><span style={{fontWeight:700}}>{cl.name}</span><span style={{fontSize:12,color:'var(--text3)'}}>{fd(o.date)}</span></div><div style={{fontSize:13,color:'var(--text2)',marginBottom:4}}>📞 {cl.phone1} | {sl}</div><div style={{fontWeight:800,fontSize:16,color:'var(--primary)',marginBottom:8}}>{fmtMoney(o.total)} — {o.installments}×</div><div className="field" style={{marginBottom:0}}><label>Atualizar status</label><select value={o.finStatus||'pendente'} onChange={e=>store.editOrder(o.id,{...o,finStatus:e.target.value})}>{FIN_STATUS.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div></div>);})}
+      </div>)}
+
+      {type==='leads'&&(<div>
+        <div className="sbox"><div className="sbox-title">🔎 Filtrar por Indicador</div><div className="field"><select value={catFilter} onChange={e=>setCatFilter(e.target.value)}><option value="">Todos os indicadores</option>{data.referrals.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></div></div>
+        <div className="export-bar no-print"><button className="btn bp bs" onClick={printLeads}>🖨️ PDF</button><button className="btn bgreen bs" onClick={waLeads}>💬 WhatsApp</button></div>
+        <div style={{fontSize:13,color:'var(--text2)',marginBottom:10}}>{fLeads.length} pré-cadastro(s)</div>
+        {fLeads.map(l=>{const ref=getReferral(l.referralId);return(<div key={l.id} className={`lead-card${l.status==='converted'?' ':{border:'1px solid var(--border)'}}`} style={{opacity:l.status==='converted'?.7:1}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700}}>{l.name}</span><span style={{fontSize:11,color:l.status==='converted'?'var(--primary)':'var(--teal)',fontWeight:700}}>{l.status==='converted'?'✅ Convertido':'🔵 Lead'}</span></div><div style={{fontSize:13,color:'var(--text2)',marginBottom:3}}>📞 {l.phone}{l.reference?` | 📍 ${l.reference}`:''}</div>{(l.referralName||ref?.name)&&<div style={{fontSize:12,color:'var(--text3)'}}>🤝 {l.referralName||ref?.name}</div>}</div>);})}
+      </div>)}
+    </div>
+  </>);
+}
+
+/* ─── DASHBOARD ──────────────────────────────────────────────────────────── */
+function Dashboard({store,setPage,setClientId}){
+  const {data,exportBackup,getBackupPreview,importBackup,showToast,cloudCfg,saveCloudConfig,pullFromCloud,pushToCloud,syncState,cleanupOrphanPhotos}=store;
+  const [tab,setTab]=useState('dash');
+  const [backupRem,setBackupRem]=useState(false);
+  const backupRef=useRef(null);
+  const [storageInfo,setStorageInfo]=useState({photos:0,loaded:false});
+  const [restorePreview,setRestorePreview]=useState(null);
+  const [restoreFile,setRestoreFile]=useState(null);
+  const [cloudForm,setCloudForm]=useState(cloudCfg);
+  const recent=data.visits.slice(0,3);
+  const totalSales=data.orders.filter(o=>o.status==='pago').reduce((a,o)=>a+(o.total||0),0);
+
+  useEffect(()=>{setCloudForm(cloudCfg);},[cloudCfg.workspace,cloudCfg.syncKey,cloudCfg.autoSync]);
+
+  useEffect(()=>{
+    const check=()=>{
+      const snooze=getBackupSnooze();
+      if(snooze&&new Date(snooze).getTime()>Date.now())return;
+      const last=getLastBackup();
+      if(!last){setBackupRem(true);return;}
+      const diff=Date.now()-new Date(last).getTime();
+      if(diff>3*60*60*1000)setBackupRem(true);
+    };
+    const interval=setInterval(check,30*60*1000);check();
+    return()=>clearInterval(interval);
+  },[]);
+
+  useEffect(()=>{
+    if(tab==='data')PS.getSize().then(mb=>setStorageInfo({photos:mb,loaded:true}));
+  },[tab]);
+
+  const handleBackup=async(withPhotos=true)=>{await exportBackup(withPhotos);setBackupRem(false);};
+  const dismissReminder=()=>{snoozeBackupReminder(3);setBackupRem(false);showToast('⏰ Lembrete adiado por 3 horas.');};
+  const handleRestoreFile=async e=>{
+    const file=e.target.files[0];if(!file)return;
+    e.target.value='';
+    const preview=await getBackupPreview(file);
+    if(!preview.valid){showToast('⚠️ Arquivo inválido');return;}
+    setRestorePreview(preview);setRestoreFile(preview.raw);
+  };
+  const confirmRestore=async()=>{
+    if(!restoreFile)return;
+    await importBackup(restoreFile);
+    setRestorePreview(null);setRestoreFile(null);
+  };
+  const lsSize=(()=>{try{const s=localStorage.getItem('cv_v4')||'';return Math.round(s.length*2/1024);}catch{return 0;}})();
+
+  return(<>
+    <Hdr title="🧳 ThermoVisit"/>
+    <div className="content">
+      <div className="tabs">
+        <div className={`tab${tab==='dash'?' on':''}`} onClick={()=>setTab('dash')}>🏠 Painel</div>
+        <div className={`tab${tab==='data'?' on':''}`} onClick={()=>setTab('data')}>💾 Dados</div>
+        <div className={`tab${tab==='config'?' on':''}`} onClick={()=>setTab('config')}>⚙️ Config</div>
+      </div>
+
+      {tab==='dash'&&(<>
+        <div className="sgrid">
+          <div className="scard"><div className="snum">{data.clients.length}</div><div className="slbl">Clientes</div></div>
+          <div className="scard"><div className="snum">{data.visits.length}</div><div className="slbl">Visitas</div></div>
+          <div className="scard"><div className="snum">{data.orders.length}</div><div className="slbl">Pedidos</div></div>
+          <div className="scard"><div className="snum">{data.leads.filter(l=>l.status==='active').length}</div><div className="slbl">Leads</div></div>
+        </div>
+        {totalSales>0&&<div style={{background:'var(--pd)',color:'#fff',borderRadius:12,padding:'12px 16px',marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}><span style={{fontSize:13,fontWeight:600}}>💰 Total Vendido (pago)</span><span style={{fontSize:18,fontWeight:800}}>{fmtMoney(totalSales)}</span></div>}
+        <div className="qgrid">
+          <div className="qbtn" onClick={()=>setPage('clientForm')}><span style={{fontSize:20}}>➕</span><span style={{fontWeight:700,fontSize:13}}>Novo Cliente</span></div>
+          <div className="qbtn" onClick={()=>setPage('clients')}><span style={{fontSize:20}}>👥</span><span style={{fontWeight:700,fontSize:13}}>Clientes</span><span style={{fontSize:11,color:'var(--text3)'}}>{data.clients.length}</span></div>
+          <div className="qbtn" onClick={()=>setPage('orderForm')}><span style={{fontSize:20}}>🛒</span><span style={{fontWeight:700,fontSize:13}}>Novo Pedido</span></div>
+          <div className="qbtn" onClick={()=>setPage('visits')}><span style={{fontSize:20}}>📋</span><span style={{fontWeight:700,fontSize:13}}>Visitas</span><span style={{fontSize:11,color:'var(--text3)'}}>{data.visits.length}</span></div>
+          <div className="qbtn" onClick={()=>setPage('reports')}><span style={{fontSize:20}}>📊</span><span style={{fontWeight:700,fontSize:13}}>Relatórios</span></div>
+          <div className="qbtn" onClick={()=>setPage('productForm')}><span style={{fontSize:20}}>📦</span><span style={{fontWeight:700,fontSize:13}}>Novo Produto</span></div>
+        </div>
+        <div className="shdr"><h3>Últimas Visitas</h3><button className="btn bo bs" onClick={()=>setPage('visits')}>Ver todas</button></div>
+        {recent.length===0&&<div className="empty"><div style={{fontSize:36}}>📋</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhuma visita ainda</div></div>}
+        {recent.map(v=>{const cl=data.clients.find(c=>c.id===v.clientId);if(!cl)return null;return(<div key={v.id} className="vi" style={{cursor:'pointer'}} onClick={()=>{setClientId(cl.id);setPage('clientDetail')}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700}}>{cl.name}</span><span style={{fontSize:12,color:'var(--text3)'}}>{fd(v.date)}</span></div><div style={{fontSize:13,color:'var(--text2)'}}>{v.notes.slice(0,80)}{v.notes.length>80?'…':''}</div>{v.nextContact&&<div style={{fontSize:12,color:'var(--accent)',fontWeight:600,marginTop:4}}>🔔 {fd(v.nextContact+'T00:00')}</div>}</div>);})}
+      </>)}
+
+      {tab==='data'&&(<div>
+        <div style={{background:'var(--pl)',border:'1px solid #b7d9c4',borderRadius:12,padding:14,marginBottom:14}}>
+          <div style={{fontWeight:700,color:'var(--pd)',marginBottom:8,fontSize:14}}>💾 Armazenamento no dispositivo</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <div style={{background:'#fff',borderRadius:9,padding:'10px 12px',border:'1px solid var(--border)'}}>
+              <div style={{fontSize:11,color:'var(--text3)',fontWeight:600,marginBottom:3}}>DADOS (texto)</div>
+              <div style={{fontSize:17,fontWeight:800,color:'var(--pd)'}}>{lsSize} KB</div>
+              <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>localStorage</div>
+            </div>
+            <div style={{background:'#fff',borderRadius:9,padding:'10px 12px',border:'1px solid var(--border)'}}>
+              <div style={{fontSize:11,color:'var(--text3)',fontWeight:600,marginBottom:3}}>FOTOS</div>
+              <div style={{fontSize:17,fontWeight:800,color:'var(--pd)'}}>{storageInfo.loaded?`${storageInfo.photos} MB`:'…'}</div>
+              <div style={{fontSize:11,color:'var(--text2)',marginTop:2}}>IndexedDB</div>
+            </div>
+          </div>
+          <div style={{fontSize:12,color:'var(--text2)',marginTop:8,lineHeight:1.5}}>Dados salvos automaticamente. Fotos comprimidas ao adicionar (max 1280px).</div>
+        </div>
+        <div className="cc" style={{marginBottom:10}}>
+          <div style={{fontWeight:700,marginBottom:4,fontSize:14}}>☁️ Nuvem (Supabase via Vercel)</div>
+          <div style={{fontSize:13,color:'var(--text2)',marginBottom:12,lineHeight:1.5}}>Sincroniza os dados de texto com a nuvem usando a API hospedada na Vercel. As fotos continuam locais neste build e seguem cobertas pelo backup completo em JSON.</div>
+          <div className="field"><label>Workspace</label><input value={cloudForm.workspace||''} onChange={e=>setCloudForm(f=>({...f,workspace:e.target.value}))} placeholder="principal"/></div>
+          <div className="field"><label>Chave de sincronização</label><input type="password" value={cloudForm.syncKey||''} onChange={e=>setCloudForm(f=>({...f,syncKey:e.target.value}))} placeholder="Defina a mesma chave na Vercel"/></div>
+          <div className="schk" onClick={()=>setCloudForm(f=>({...f,autoSync:!f.autoSync}))}>
+            <div className={`box${cloudForm.autoSync?' on':''}`}>{cloudForm.autoSync?'✓':''}</div>
+            <div style={{fontSize:13,fontWeight:600}}>Sincronizar automaticamente quando houver internet</div>
+          </div>
+          <div style={{background:'var(--bg)',borderRadius:8,padding:10,fontSize:12,color:'var(--text2)',lineHeight:1.5,marginBottom:10}}>
+            Status: <b>{!cloudCfg.syncKey?'Local apenas':syncState.busy?'Sincronizando…':syncState.error?'Falha na nuvem':'Nuvem pronta'}</b>
+            {syncState.remoteUpdatedAt&&<><br/>Última versão na nuvem: {new Date(syncState.remoteUpdatedAt).toLocaleString('pt-BR')}</>}
+            {syncState.lastPush&&<><br/>Último envio: {new Date(syncState.lastPush).toLocaleString('pt-BR')}</>}
+            {syncState.lastPull&&<><br/>Último download: {new Date(syncState.lastPull).toLocaleString('pt-BR')}</>}
+          </div>
+          <div className="cbar" style={{flexWrap:'wrap'}}>
+            <button className="btn bo" style={{flex:'1 1 140px'}} onClick={()=>saveCloudConfig(cloudForm)}>💾 Salvar configuração</button>
+            <button className="btn bp" style={{flex:'1 1 120px'}} onClick={()=>pushToCloud()}>⬆️ Enviar dados</button>
+            <button className="btn bg" style={{flex:'1 1 120px'}} onClick={()=>pullFromCloud()}>⬇️ Baixar dados</button>
+          </div>
+        </div>
+        <div className="cc" style={{marginBottom:10}}>
+          <div style={{fontWeight:700,marginBottom:4,fontSize:14}}>🧹 Manutenção</div>
+          <div style={{fontSize:13,color:'var(--text2)',marginBottom:12,lineHeight:1.5}}>Remove fotos que ficaram órfãs no armazenamento local depois de exclusões antigas.</div>
+          <button className="btn bo" style={{width:'100%'}} onClick={cleanupOrphanPhotos}>🧽 Limpar fotos órfãs</button>
+        </div>
+        <div className="cc" style={{marginBottom:10}}>
+          <div style={{fontWeight:700,marginBottom:4,fontSize:14}}>⬇️ Exportar Backup</div>
+          <div style={{fontSize:13,color:'var(--text2)',marginBottom:12,lineHeight:1.5}}>Escolha o tipo de backup:</div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            <button className="btn bp" style={{width:'100%'}} onClick={()=>handleBackup(true)}>
+              📦 Backup Completo <span style={{fontSize:12,opacity:.8}}>(dados + fotos)</span>
+            </button>
+            <button className="btn bo" style={{width:'100%'}} onClick={()=>handleBackup(false)}>
+              📄 Só os Dados <span style={{fontSize:12,opacity:.8}}>(rápido, arquivo pequeno)</span>
+            </button>
+          </div>
+          {getLastBackup()&&<div style={{fontSize:12,color:'var(--text3)',marginTop:8,textAlign:'center'}}>
+            Último backup: {new Date(getLastBackup()).toLocaleString('pt-BR')}
+          </div>}
+        </div>
+        <div className="cc">
+          <div style={{fontWeight:700,marginBottom:4,fontSize:14}}>⬆️ Restaurar Backup</div>
+          <div style={{fontSize:13,color:'var(--text2)',marginBottom:10,lineHeight:1.5}}>
+            Selecione um arquivo <b>.json</b> exportado.<br/>
+            <span style={{color:'var(--danger)',fontWeight:600}}>Prévia mostrada antes de confirmar.</span>
+          </div>
+          <button className="btn bo" style={{width:'100%'}} onClick={()=>backupRef.current.click()}>📂 Selecionar arquivo .json</button>
+          <input ref={backupRef} type="file" accept=".json" style={{display:'none'}} onChange={handleRestoreFile}/>
+        </div>
+        {restorePreview&&(
+          <div className="ov" onClick={()=>setRestorePreview(null)}>
+            <div className="modal" onClick={e=>e.stopPropagation()}>
+              <div className="mhdl"/>
+              <div className="mtitle">📋 Prévia do Backup</div>
+              {restorePreview.backupDate&&<div style={{fontSize:12,color:'var(--text3)',marginBottom:12}}>
+                Gerado em: {new Date(restorePreview.backupDate).toLocaleString('pt-BR')}
+              </div>}
+              <div style={{background:'var(--bg)',borderRadius:10,padding:12,marginBottom:14}}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                  {[['👥 Clientes',restorePreview.clients],['📦 Produtos',restorePreview.products],['📋 Visitas',restorePreview.visits],['🛒 Pedidos',restorePreview.orders],['🔵 Leads',restorePreview.leads],['📷 Fotos',restorePreview.photoCount]].map(([l,v])=>(
+                    <div key={l} style={{background:'var(--card)',borderRadius:8,padding:'8px 10px',border:'1px solid var(--border)'}}>
+                      <div style={{fontSize:12,color:'var(--text2)'}}>{l}</div>
+                      <div style={{fontSize:18,fontWeight:800,color:'var(--pd)'}}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+                {restorePreview.backupType==='data-only'&&<div style={{marginTop:8,fontSize:12,color:'var(--accent)',fontWeight:600}}>
+                  ⚠️ Este backup não contém fotos (apenas dados de texto).
+                </div>}
+              </div>
+              <div style={{background:'#fee2e2',borderRadius:8,padding:10,marginBottom:14,fontSize:13,color:'#b91c1c',fontWeight:600}}>
+                ⚠️ Os dados atuais serão substituídos. Ação irreversível.
+              </div>
+              <div className="cbar">
+                <button className="btn bg" style={{flex:1}} onClick={()=>setRestorePreview(null)}>Cancelar</button>
+                <button className="btn bd" style={{flex:1}} onClick={confirmRestore}>✅ Restaurar agora</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>)}
+
+      {tab==='config'&&<ConfigPage store={store}/>}
+    </div>
+    {backupRem&&<BackupReminder onBackup={handleBackup} onDismiss={dismissReminder}/>}
+  </>);
+}
+
+/* ─── CONFIG ─────────────────────────────────────────────────────────────── */
+function ConfigPage({store}){
+  const {data,addCat,editCat,delCat,addET,editET,delET,addPC,editPC,delPC,addCST,editCST,delCST,showToast}=store;
+  const [sec,setSec]=useState('status');
+  return(<div>
+    <div style={{display:'flex',gap:5,marginBottom:14,flexWrap:'wrap'}}>
+      {[['status','📊 Status'],['cats','🏷️ Categorias'],['envt','🏗️ Ambientes'],['pcat','📦 Produtos']].map(([k,l])=><button key={k} className={`tpill${sec===k?' on':''}`} onClick={()=>setSec(k)}>{l}</button>)}
+    </div>
+    {sec==='status'&&(<div><div style={{background:'var(--acl)',border:'1px solid #fcd34d',borderRadius:10,padding:12,marginBottom:12,fontSize:13,color:'#92400e'}}>ℹ️ Status padrão são fixos. Aqui crie <b>status adicionais</b>.</div><CrudList items={data.customStatusTypes} label="Status Personalizado" labelField="label" onAdd={x=>addCST({label:x.name})} onEdit={(id,x)=>editCST(id,{label:x.name})} onDel={id=>delCST(id)} showToast={showToast}/></div>)}
+    {sec==='cats'&&<CrudList items={data.categories} label="Categoria de Cliente" onAdd={addCat} onEdit={editCat} onDel={delCat} showToast={showToast}/>}
+    {sec==='envt'&&<CrudList items={data.envTypes} label="Tipo de Ambiente" onAdd={addET} onEdit={editET} onDel={delET} showToast={showToast}/>}
+    {sec==='pcat'&&<CrudList items={data.productCategories} label="Categoria de Produto" onAdd={addPC} onEdit={editPC} onDel={delPC} showToast={showToast}/>}
+  </div>);
+}
+
+/* ─── PRODUCTS ───────────────────────────────────────────────────────────── */
+function ProductsList({store,setPage,setEditProductId}){
+  const {data,delProduct,showToast}=store;
+  const [q,setQ]=useState('');const [cf,setCf]=useState('');const [conf,setConf]=useState(null);const [lb,setLb]=useState(null);
+  const rows=data.products.filter(p=>(p.name.toLowerCase().includes(q.toLowerCase())||(p.model||'').toLowerCase().includes(q.toLowerCase()))&&(!cf||p.categoryId===cf));
+  return(<><Hdr title="📦 Produtos" right={<button className="btn bp bs" onClick={()=>setPage('productForm')}>+ Novo</button>}/>
+    <div className="content">
+      <input className="sb" placeholder="🔍 Nome ou modelo…" value={q} onChange={e=>setQ(e.target.value)}/>
+      <select className="sb" value={cf} onChange={e=>setCf(e.target.value)}><option value="">Todas as categorias</option>{data.productCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+      {rows.length===0&&<div className="empty"><div style={{fontSize:36}}>📦</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum produto</div></div>}
+      {rows.map(p=>{const cat=data.productCategories.find(c=>c.id===p.categoryId);return(<div key={p.id} className="product-card"><div style={{display:'flex',gap:12,alignItems:'flex-start'}}>{(p.photoIds||[]).length>0&&<PhotoImg pid={p.photoIds[0]} style={{width:64,height:64,flexShrink:0,cursor:'pointer',borderRadius:9,border:'1px solid var(--border)'}} onClick={()=>PS.get(p.photoIds[0]).then(d=>d&&setLb(d))}/>}<div style={{flex:1,minWidth:0}}><div style={{fontWeight:800,fontSize:15,marginBottom:2}}>{p.name}</div>{p.model&&<div style={{fontSize:12,color:'var(--text3)',marginBottom:4}}>Modelo: {p.model}</div>}{cat&&<span className="tag" style={{background:'var(--purplel)',color:'var(--purple)',marginBottom:4}}>{cat.name}</span>}<div style={{fontSize:14,fontWeight:700,color:'var(--primary)',marginTop:4}}>{fmtMoney(p.price)}</div></div></div>{(p.dimensions||p.color)&&<div style={{fontSize:12,color:'var(--text2)',marginTop:6}}>{p.dimensions&&`📐 ${p.dimensions}`}{p.color&&` · 🎨 ${p.color}`}</div>}<div className="cac"><button className="btn bg bs" onClick={()=>{setEditProductId(p.id);setPage('productForm')}}>✏️</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(p.id)}>🗑️</button></div></div>);})}
+    </div>
+    {conf&&<Confirm msg="Excluir produto?" onOk={()=>{delProduct(conf);setConf(null);showToast('Removido');}} onCancel={()=>setConf(null)}/>}
+    {lb&&<Lightbox src={lb} onClose={()=>setLb(null)}/>}
+  </>);
+}
+function ProductForm({store,setPage,editId,clearEdit}){
+  const {data,addProduct,editProduct,showToast}=store;
+  const ex=editId?data.products.find(p=>p.id===editId):null;
+  const [f,setF]=useState({name:ex?.name||'',model:ex?.model||'',categoryId:ex?.categoryId||'',dimensions:ex?.dimensions||'',color:ex?.color||'',price:ex?.price||'',notes:ex?.notes||'',photoIds:ex?.photoIds||[]});
+  const s=(k,v)=>setF(x=>({...x,[k]:v}));
+  const submit=()=>{if(!f.name){showToast('⚠️ Nome obrigatório');return;}if(!f.categoryId){showToast('⚠️ Categoria obrigatória');return;}const p={...f,price:parseFloat((f.price+'').replace(',','.'))||0};if(editId)editProduct(editId,p);else addProduct(p);showToast(editId?'✅ Atualizado':'✅ Cadastrado');clearEdit();setPage('products');};
+  return(<><Hdr title={editId?'Editar Produto':'Novo Produto'} onBack={()=>{clearEdit();setPage('products')}}/>
+    <div className="content">
+      <div className="field"><label>Nome *</label><input value={f.name} onChange={e=>s('name',e.target.value)} placeholder="Ex: Bioqueimador a Pellets"/></div>
+      <div className="row2"><div className="field"><label>Modelo</label><input value={f.model} onChange={e=>s('model',e.target.value)} placeholder="Ex: BQ-200"/></div><div className="field"><label>Categoria *</label><select value={f.categoryId} onChange={e=>s('categoryId',e.target.value)}><option value="">Selecione…</option>{data.productCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div></div>
+      <div className="row2"><div className="field"><label>Dimensões</label><input value={f.dimensions} onChange={e=>s('dimensions',e.target.value)} placeholder="50×30×20 cm"/></div><div className="field"><label>Cor</label><input value={f.color} onChange={e=>s('color',e.target.value)} placeholder="Preto fosco"/></div></div>
+      <div className="field"><label>Valor (R$) *</label><input value={f.price} onChange={e=>s('price',e.target.value)} placeholder="0,00" inputMode="decimal"/></div>
+      <div className="field"><label>Descrição</label><textarea value={f.notes} onChange={e=>s('notes',e.target.value)} placeholder="Características técnicas…"/></div>
+      <div className="sbox"><PhotoUploader photoIds={f.photoIds} onChange={v=>s('photoIds',v)} label="📷 Fotos do Produto" contextName={f.name||'produto'}/></div>
+      <button className="btn bp" style={{width:'100%'}} onClick={submit}>💾 {editId?'Salvar':'Cadastrar'}</button>
+    </div>
+  </>);
+}
+
+/* ─── ORDERS ─────────────────────────────────────────────────────────────── */
+function OrdersList({store,setPage,setClientId,setEditOrderId}){
+  const {data,delOrder,showToast}=store;
+  const [q,setQ]=useState('');const [conf,setConf]=useState(null);
+  const rows=data.orders.filter(o=>{const cl=data.clients.find(c=>c.id===o.clientId);return cl&&cl.name.toLowerCase().includes(q.toLowerCase());});
+  return(<><Hdr title="🛒 Pedidos" right={<button className="btn bp bs" onClick={()=>setPage('orderForm')}>+ Novo</button>}/>
+    <div className="content">
+      <input className="sb" placeholder="🔍 Buscar por cliente…" value={q} onChange={e=>setQ(e.target.value)}/>
+      {rows.length===0&&<div className="empty"><div style={{fontSize:36}}>🛒</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum pedido</div></div>}
+      {rows.map(o=>{
+        const cl=data.clients.find(c=>c.id===o.clientId);if(!cl)return null;
+        const env=cl.environments.find(e=>e.id===o.envId);
+        const ref=data.referrals.find(r=>r.id===o.referralId);
+        return(<div key={o.id} className="order-card">
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}><div><div style={{fontWeight:800,fontSize:15,cursor:'pointer'}} onClick={()=>{setClientId(cl.id);setPage('clientDetail')}}>{cl.name}</div>{env&&<div style={{fontSize:12,color:'var(--text2)'}}>🏗️ {env.label}</div>}</div><span style={{fontSize:12,color:'var(--text3)'}}>{fd(o.date)}</span></div>
+          <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:5}}>
+            <span className={`tag ${PAY_CLASS[o.paymentType]||''}`}>{PAY_LABELS[o.paymentType]}</span>
+            {o.status&&<span className={`tag ${ORDER_STATUS[o.status]||''}`}>{ORDER_STATUS_LABEL[o.status]}</span>}
+            {ref&&<span className="tag" style={{background:'var(--teall)',color:'var(--teal)'}}>🤝 {ref.name}</span>}
+          </div>
+          <div style={{fontWeight:800,fontSize:16,color:'var(--primary)',marginBottom:8}}>{fmtMoney(o.total)}</div>
+          <div className="cac">
+            <button className="btn bg bs" onClick={()=>{setEditOrderId(o.id);setPage('orderForm')}}>✏️</button>
+            <button className="btn bg bs" onClick={()=>{
+              const items=(o.items||[]).map(it=>{const p=data.products.find(x=>x.id===it.productId);return`- ${it.productName||p?.name||'Produto'}: ${it.qty}× ${fmtMoney(it.unitPrice)} = ${fmtMoney(it.qty*it.unitPrice)}`;}).join('\n');
+              cpText(`*Pedido — ${cl.name}*\nData: ${fd(o.date)}\nPagamento: ${PAY_LABELS[o.paymentType]}${o.installments?' ('+o.installments+'×)':''}\nStatus: ${ORDER_STATUS_LABEL[o.status]||'—'}\n\nProdutos:\n${items}\n\n*Total: ${fmtMoney(o.total)}*${o.notes?'\n\nObs: '+o.notes:''}`,()=>showToast('💬 Copiado!'));
+            }}>💬</button>
+            <button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(o.id)}>🗑️</button>
+          </div>
+        </div>);
+      })}
+    </div>
+    {conf&&<Confirm msg="Excluir pedido?" onOk={()=>{delOrder(conf);setConf(null);showToast('Removido');}} onCancel={()=>setConf(null)}/>}
+  </>);
+}
+function OrderForm({store,setPage,editId,clearEdit}){
+  const {data,addOrder,editOrder,showToast}=store;
+  const ex=editId?data.orders.find(o=>o.id===editId):null;
+  const [clientId,setClientId]=useState(ex?.clientId||'');
+  const [envId,setEnvId]=useState(ex?.envId||'');
+  const [paymentType,setPaymentType]=useState(ex?.paymentType||'avista');
+  const [installments,setInstallments]=useState(ex?.installments||'');
+  const [finStatus,setFinStatus]=useState(ex?.finStatus||'pendente');
+  const [referralId,setReferralId]=useState(ex?.referralId||'');
+  const [orderStatus,setOrderStatus]=useState(ex?.status||'pendente');
+  const [notes,setNotes]=useState(ex?.notes||'');
+  const [items,setItems]=useState(ex?.items||[]);
+  const [addingProd,setAddingProd]=useState(false);
+  const [selProd,setSelProd]=useState('');const [selQty,setSelQty]=useState('1');
+  const client=data.clients.find(c=>c.id===clientId);
+  const envs=client?.environments||[];
+  const total=items.reduce((a,it)=>a+it.qty*it.unitPrice,0);
+  const addItem=()=>{if(!selProd){showToast('⚠️ Selecione um produto');return;}const prod=data.products.find(p=>p.id===selProd);if(!prod)return;const ex2=items.find(it=>it.productId===selProd);if(ex2){setItems(items.map(it=>it.productId===selProd?{...it,qty:it.qty+(+selQty||1),productName:it.productName||prod.name||'',productModel:it.productModel||prod.model||''}:it));}else{setItems([...items,{productId:selProd,productName:prod.name||'',productModel:prod.model||'',qty:+selQty||1,unitPrice:prod.price||0}]);}setSelProd('');setSelQty('1');setAddingProd(false);};
+  const submit=()=>{if(!clientId){showToast('⚠️ Cliente obrigatório');return;}if(items.length===0){showToast('⚠️ Adicione produtos');return;}const ref=data.referrals.find(r=>r.id===referralId);const normalizedItems=items.map(it=>{const prod=data.products.find(p=>p.id===it.productId);return{...it,productName:it.productName||prod?.name||'',productModel:it.productModel||prod?.model||''};});const o={clientId,envId:envId||null,paymentType,installments:+installments||null,finStatus:paymentType==='financiamento'?finStatus:null,referralId:referralId||null,referralName:ref?.name||null,status:orderStatus,notes,items:normalizedItems,total};if(editId)editOrder(editId,o);else addOrder(o);showToast(editId?'✅ Atualizado':'✅ Pedido registrado');clearEdit();setPage('orders');};
+  const printOrder=()=>{
+    const cl=data.clients.find(c=>c.id===clientId);
+    const env=cl?.environments.find(e=>e.id===envId);
+    const ref=data.referrals.find(r=>r.id===referralId);
+    const rows=items.map(it=>{const p=data.products.find(x=>x.id===it.productId);return`<tr><td>${it.productName||p?.name||'—'}</td><td>${it.productModel||p?.model||'—'}</td><td style="text-align:center">${it.qty}</td><td>${fmtMoney(it.unitPrice)}</td><td><b>${fmtMoney(it.qty*it.unitPrice)}</b></td></tr>`;}).join('');
+    openPrint('Pedido de Venda',`<div style="margin-bottom:14px"><b>Cliente:</b> ${cl?.name||'—'}<br><b>Telefone:</b> ${cl?.phone1||'—'}<br>${env?`<b>Ambiente:</b> ${env.label}<br>`:''}<b>Pagamento:</b> ${PAY_LABELS[paymentType]}${installments&&paymentType!=='avista'?' ('+installments+'×)':''}${paymentType==='financiamento'?'<br><b>Status financ.:</b> '+finStatus:''}<br><b>Status pedido:</b> ${ORDER_STATUS_LABEL[orderStatus]}${ref?`<br><b>Indicado por:</b> ${ref.name}`:''}</div><table><thead><tr><th>Produto</th><th>Modelo</th><th style="text-align:center">Qtd</th><th>Vlr. Unit.</th><th>Total</th></tr></thead><tbody>${rows}<tr class="total-row"><td colspan="4"><b>TOTAL DO PEDIDO</b></td><td><b>${fmtMoney(total)}</b></td></tr></tbody></table>${notes?`<p style="margin-top:12px"><b>Observações:</b> ${notes}</p>`:''}`,data.company,data.representative);
+  };
+  return(<><Hdr title={editId?'Editar Pedido':'Novo Pedido'} onBack={()=>{clearEdit();setPage('orders')}}/>
+    <div className="content">
+      <div className="sbox">
+        <div className="sbox-title">👤 Cliente</div>
+        <div className="field"><label>Cliente *</label><ClientSearch clients={data.clients} value={clientId} onChange={v=>{setClientId(v);setEnvId('');}}/></div>
+        {envs.length>0&&<div className="field"><label>Ambiente de instalação</label><select value={envId} onChange={e=>setEnvId(e.target.value)}><option value="">A definir</option>{envs.map(e=><option key={e.id} value={e.id}>{e.label}</option>)}</select></div>}
+      </div>
+      <div className="sbox">
+        <div className="sbox-title">📦 Produtos</div>
+        {items.length===0&&<div style={{fontSize:13,color:'var(--text3)',marginBottom:10}}>Nenhum produto.</div>}
+        {items.map(it=>{const prod=data.products.find(p=>p.id===it.productId);return(<div key={it.productId} className="order-item-row">{prod&&(prod.photoIds||[]).length>0&&<PhotoImg pid={prod.photoIds[0]} style={{width:40,height:40,flexShrink:0,borderRadius:6,border:'1px solid var(--border)'}}/>}<div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13}}>{it.productName||prod?.name||'Produto'}</div><div style={{display:'flex',gap:6,marginTop:4,flexWrap:'wrap'}}><div style={{display:'flex',alignItems:'center',gap:4}}><span style={{fontSize:12,color:'var(--text2)'}}>Qtd:</span><input type="number" value={it.qty} min="1" onChange={e=>setItems(items.map(x=>x.productId===it.productId?{...x,qty:+e.target.value||1}:x))} style={{width:50,border:'1px solid var(--border)',borderRadius:6,padding:'3px 6px',fontSize:13}}/></div><div style={{display:'flex',alignItems:'center',gap:4}}><span style={{fontSize:12,color:'var(--text2)'}}>R$:</span><input type="number" value={it.unitPrice} step="0.01" onChange={e=>setItems(items.map(x=>x.productId===it.productId?{...x,unitPrice:parseFloat(e.target.value)||0}:x))} style={{width:80,border:'1px solid var(--border)',borderRadius:6,padding:'3px 6px',fontSize:13}}/></div></div></div><div style={{textAlign:'right',flexShrink:0}}><div style={{fontWeight:700,fontSize:13,color:'var(--primary)'}}>{fmtMoney(it.qty*it.unitPrice)}</div><button className="btn bg bs" style={{color:'var(--danger)',padding:'3px 8px',marginTop:4}} onClick={()=>setItems(items.filter(x=>x.productId!==it.productId))}>🗑️</button></div></div>);})}
+        {addingProd?(<div style={{background:'var(--bg)',borderRadius:9,padding:10,marginTop:10}}><div className="field" style={{marginBottom:8}}><label>Produto</label><select value={selProd} onChange={e=>setSelProd(e.target.value)}><option value="">Selecione…</option>{data.products.map(p=><option key={p.id} value={p.id}>{p.name} — {fmtMoney(p.price)}</option>)}</select></div><div className="field" style={{marginBottom:8}}><label>Quantidade</label><input type="number" value={selQty} min="1" onChange={e=>setSelQty(e.target.value)} inputMode="numeric"/></div><div className="cbar"><button className="btn bg bs" style={{flex:1}} onClick={()=>setAddingProd(false)}>Cancelar</button><button className="btn bp bs" style={{flex:1}} onClick={addItem}>Adicionar</button></div></div>):(<button className="btn bo" style={{width:'100%',marginTop:10}} onClick={()=>{if(data.products.length===0){showToast('⚠️ Cadastre produtos primeiro');return;}setAddingProd(true);}}>+ Adicionar Produto</button>)}
+        {items.length>0&&<div className="order-total"><span style={{fontSize:14,fontWeight:600}}>Total</span><span style={{fontSize:20,fontWeight:800}}>{fmtMoney(total)}</span></div>}
+      </div>
+      <div className="sbox">
+        <div className="sbox-title">💳 Pagamento</div>
+        <div className="stitle">Forma de Pagamento</div>
+        <div className="toggle-group">{[['avista','💵 À Vista'],['parcelado','🏢 Parcelado'],['financiamento','🏦 Financiamento']].map(([v,l])=><button key={v} className={`tpill${paymentType===v?' on':''}`} onClick={()=>setPaymentType(v)}>{l}</button>)}</div>
+        {paymentType!=='avista'&&<div className="field"><label>Parcelas</label><input type="number" value={installments} onChange={e=>setInstallments(e.target.value)} placeholder="Ex: 12" inputMode="numeric"/></div>}
+        {paymentType==='financiamento'&&<div className="field"><label>Status do Financiamento</label><select value={finStatus} onChange={e=>setFinStatus(e.target.value)}>{[['pendente','⏳ Em análise'],['aprovado','✅ Aprovado'],['reprovado','❌ Reprovado'],['liberado','🏦 Liberado']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></div>}
+        <div className="stitle" style={{marginTop:8}}>Status do Pedido</div>
+        <div className="toggle-group">{[['pendente','⏳ Pendente'],['pago','✅ Pago'],['cancelado','❌ Cancelado']].map(([v,l])=><button key={v} className={`tpill${orderStatus===v?' on':''}`} onClick={()=>setOrderStatus(v)}>{l}</button>)}</div>
+        {orderStatus==='pago'&&referralId&&<div style={{background:'var(--pl)',borderRadius:8,padding:'8px 12px',fontSize:13,color:'var(--pd)',fontWeight:600}}>✅ Ao salvar, uma comissão será gerada automaticamente para o indicador.</div>}
+      </div>
+      {data.referrals.length>0&&<div className="sbox"><div className="sbox-title">🤝 Indicação</div><div className="field" style={{marginBottom:0}}><label>Indicado por</label><select value={referralId} onChange={e=>setReferralId(e.target.value)}><option value="">Sem indicação</option>{data.referrals.map(r=><option key={r.id} value={r.id}>{r.name} — comissão {fmtMoney(r.commission||0)}</option>)}</select></div></div>}
+      <div className="field"><label>Observações</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Condições, prazo…"/></div>
+      <div style={{display:'flex',gap:8}}>
+        <button className="btn bp" style={{flex:2}} onClick={submit}>💾 {editId?'Salvar':'Registrar'}</button>
+        {items.length>0&&clientId&&<button className="btn bg bs" onClick={printOrder}>🖨️</button>}
+      </div>
+    </div>
+  </>);
+}
+
+/* ─── ENVIRONMENTS ───────────────────────────────────────────────────────── */
+const EMPTY_ENV={typeId:'',height:'',width:'',length:'',notes:'',estufaType:'grampo',grampoQty:'',grampoSize:'28',photoIds:[],furnace:{length:'',diameter:'',returnQty:'',returnLength:'',returnDiameter:'',returnSystem:'funil',notes:'',photoIds:[]}};
+function EnvModal({store,clientId,editEnvData,onClose}){
+  const {data,addEnv,editEnv,showToast}=store;
+  const [f,setF]=useState(editEnvData?{typeId:editEnvData.typeId||'',height:editEnvData.height||'',width:editEnvData.width||'',length:editEnvData.length||'',notes:editEnvData.notes||'',estufaType:editEnvData.estufaType||'grampo',grampoQty:editEnvData.grampoQty||'',grampoSize:editEnvData.grampoSize||'28',photoIds:editEnvData.photoIds||[],furnace:{length:editEnvData.furnace?.length||'',diameter:editEnvData.furnace?.diameter||'',returnQty:editEnvData.furnace?.returnQty||'',returnLength:editEnvData.furnace?.returnLength||'',returnDiameter:editEnvData.furnace?.returnDiameter||'',returnSystem:editEnvData.furnace?.returnSystem||'funil',notes:editEnvData.furnace?.notes||'',photoIds:editEnvData.furnace?.photoIds||[]}}:EMPTY_ENV);
+  const s=(k,v)=>setF(x=>({...x,[k]:v}));const sf=(k,v)=>setF(x=>({...x,furnace:{...x.furnace,[k]:v}}));
+  const et=data.envTypes.find(t=>t.id===f.typeId);const isEstufa=et?.name?.toLowerCase().includes('estufa');
+  const submit=()=>{if(!f.typeId){showToast('⚠️ Tipo obrigatório');return;}const env={typeId:f.typeId,height:+f.height||0,width:+f.width||0,length:+f.length||0,notes:f.notes,estufaType:f.estufaType,grampoQty:isEstufa&&f.estufaType==='grampo'?+f.grampoQty||0:null,grampoSize:isEstufa&&f.estufaType==='grampo'?f.grampoSize:null,photoIds:f.photoIds,furnace:{length:+f.furnace.length||0,diameter:+f.furnace.diameter||0,returnQty:+f.furnace.returnQty||0,returnLength:+f.furnace.returnLength||0,returnDiameter:+f.furnace.returnDiameter||0,returnSystem:f.furnace.returnSystem,notes:f.furnace.notes,photoIds:f.furnace.photoIds}};if(editEnvData){editEnv(clientId,editEnvData.id,env);showToast('✅ Atualizado');}else{addEnv(clientId,env);showToast('✅ Ambiente adicionado');}onClose();};
+  return(<div className="ov" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
+    <div className="mhdl"/><div className="mtitle">{editEnvData?'✏️ Editar Ambiente':'🏗️ Novo Ambiente'}</div>
+    <div className="sbox"><div className="sbox-title">🏗️ Tipo e Medidas</div><div className="field"><label>Tipo *</label><select value={f.typeId} onChange={e=>s('typeId',e.target.value)}><option value="">Selecione…</option>{data.envTypes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></div><div className="row3"><div className="field"><label>Alt. (m)</label><input type="number" value={f.height} onChange={e=>s('height',e.target.value)} inputMode="decimal" placeholder="0.0"/></div><div className="field"><label>Larg. (m)</label><input type="number" value={f.width} onChange={e=>s('width',e.target.value)} inputMode="decimal" placeholder="0.0"/></div><div className="field"><label>Comp. (m)</label><input type="number" value={f.length} onChange={e=>s('length',e.target.value)} inputMode="decimal" placeholder="0.0"/></div></div><div className="field"><label>Observações</label><textarea value={f.notes} onChange={e=>s('notes',e.target.value)} style={{minHeight:60}}/></div></div>
+    {isEstufa&&(<div className="sbox"><div className="sbox-title">🌿 Tipo de Estufa</div><div className="toggle-group">{[['grampo','Grampo'],['ll','LL']].map(([v,l])=><button key={v} className={`tpill${f.estufaType===v?' on':''}`} onClick={()=>s('estufaType',v)}>{l}</button>)}</div>{f.estufaType==='grampo'&&(<><div className="stitle">Medida do Grampo</div><div className="toggle-group">{[['20','20 cm'],['28','28 cm']].map(([v,l])=><button key={v} className={`tpill${f.grampoSize===v?' on':''}`} onClick={()=>s('grampoSize',v)}>{l}</button>)}</div><div className="field"><label>Qtd. Grampos</label><input type="number" value={f.grampoQty} onChange={e=>s('grampoQty',e.target.value)} inputMode="numeric" placeholder="60"/></div></>)}</div>)}
+    <div className="sbox"><PhotoUploader photoIds={f.photoIds} onChange={v=>s('photoIds',v)} label="📷 Fotos do Ambiente" contextName="ambiente"/></div>
+    <div className="sbox"><div className="sbox-title">🔥 Fornalha</div><div className="row2"><div className="field"><label>Comprimento (cm)</label><input type="number" value={f.furnace.length} onChange={e=>sf('length',e.target.value)} inputMode="decimal" placeholder="250"/></div><div className="field"><label>Diâmetro (cm)</label><input type="number" value={f.furnace.diameter} onChange={e=>sf('diameter',e.target.value)} inputMode="decimal" placeholder="35"/></div></div><div className="row3"><div className="field"><label>Qtd. Ret.</label><input type="number" value={f.furnace.returnQty} onChange={e=>sf('returnQty',e.target.value)} inputMode="numeric" placeholder="4"/></div><div className="field"><label>Comp. ret.(m)</label><input type="number" value={f.furnace.returnLength} onChange={e=>sf('returnLength',e.target.value)} inputMode="decimal" placeholder="8"/></div><div className="field"><label>⌀ ret.(cm)</label><input type="number" value={f.furnace.returnDiameter} onChange={e=>sf('returnDiameter',e.target.value)} inputMode="decimal" placeholder="12"/></div></div><div className="stitle">Sistema de Retorno</div><div className="toggle-group">{[['funil','Funil'],['frontal','Frontal'],['lateral','Lateral']].map(([v,l])=><button key={v} className={`tpill${f.furnace.returnSystem===v?' on':''}`} onClick={()=>sf('returnSystem',v)}>{l}</button>)}</div><div className="field"><label>Obs. Fornalha</label><textarea value={f.furnace.notes} onChange={e=>sf('notes',e.target.value)} style={{minHeight:55}}/></div></div>
+    <div className="sbox"><PhotoUploader photoIds={f.furnace.photoIds} onChange={v=>sf('photoIds',v)} label="📷 Fotos da Fornalha" contextName="fornalha"/></div>
+    <div className="cbar"><button className="btn bg" style={{flex:1}} onClick={onClose}>Cancelar</button><button className="btn bp" style={{flex:2}} onClick={submit}>{editEnvData?'💾 Salvar':'➕ Adicionar'}</button></div>
+  </div></div>);
+}
+function EnvCard({env,envTypes,onEdit,onDelete,showToast}){
+  const et=envTypes.find(t=>t.id===env.typeId);const f=env.furnace||{};const [lb,setLb]=useState(null);const [exp,setExp]=useState(false);
+  return(<div className="ecard">
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:7}}><div><div style={{fontWeight:800,fontSize:15}}>{env.label||et?.name||'Ambiente'}</div></div><div style={{display:'flex',gap:5}}><button className="btn bg bs" style={{padding:'4px 9px'}} onClick={()=>setExp(x=>!x)}>{exp?'▲':'▼'}</button><button className="btn bg bs" style={{padding:'4px 9px'}} onClick={onEdit}>✏️</button><button className="btn bg bs" style={{color:'var(--danger)',padding:'4px 9px'}} onClick={onDelete}>🗑️</button></div></div>
+    <div className="info-row">{env.height>0&&<span className="pill">📐 {env.height}×{env.width}×{env.length}m</span>}{env.estufaType==='grampo'&&<span className="pill">{`🪝 ${env.grampoSize}cm (${env.grampoQty}un)`}</span>}{env.estufaType==='ll'&&<span className="pill pill-blue">↔️ LL</span>}{f.returnSystem&&<span className="pill pill-amber">🔁 {f.returnSystem}</span>}</div>
+    {(env.photoIds||[]).length>0&&<div style={{display:'flex',gap:5,marginBottom:6,flexWrap:'wrap'}}>{env.photoIds.slice(0,3).map(id=><PhotoImg key={id} pid={id} style={{width:58,height:58,flexShrink:0,cursor:'pointer',borderRadius:7,border:'1px solid var(--border)'}} onClick={()=>PS.get(id).then(d=>d&&setLb(d))}/>)}{env.photoIds.length>3&&<div style={{width:58,height:58,borderRadius:7,background:'var(--bg)',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color:'var(--text2)'}}>+{env.photoIds.length-3}</div>}</div>}
+    {exp&&(<div style={{marginTop:10,borderTop:'1px solid #b7d9c4',paddingTop:10}}>
+      {(f.length||f.diameter||f.returnQty)&&<div className="fcard"><div style={{fontWeight:700,fontSize:13,marginBottom:5}}>🔥 Fornalha</div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4,fontSize:12,color:'var(--text2)'}}>{f.length>0&&<span>📏 {f.length}cm</span>}{f.diameter>0&&<span>⌀ {f.diameter}cm</span>}{f.returnQty>0&&<span>🔄 {f.returnQty}×{f.returnLength}m</span>}{f.returnDiameter>0&&<span>⌀ret {f.returnDiameter}cm</span>}{f.returnSystem&&<span>↩️ {f.returnSystem}</span>}</div>{f.notes&&<div style={{fontSize:12,color:'var(--text2)',marginTop:5,fontStyle:'italic'}}>{f.notes}</div>}{(f.photoIds||[]).length>0&&<div style={{display:'flex',gap:5,flexWrap:'wrap',marginTop:8}}>{f.photoIds.map(id=><PhotoImg key={id} pid={id} style={{width:58,height:58,flexShrink:0,cursor:'pointer',borderRadius:7,border:'1px solid var(--border)'}} onClick={()=>PS.get(id).then(d=>d&&setLb(d))}/>)}</div>}</div>}
+      {env.notes&&<div style={{fontSize:13,color:'var(--text2)',marginTop:8,padding:8,background:'rgba(255,255,255,.6)',borderRadius:7}}>{env.notes}</div>}
+    </div>)}
+    {lb&&<Lightbox src={lb} onClose={()=>setLb(null)}/>}
+  </div>);
+}
+
+/* ─── CLIENTS ────────────────────────────────────────────────────────────── */
+function ClientsList({store,setPage,setClientId,setEditId}){
+  const {data,delClient,showToast}=store;
+  const [q,setQ]=useState('');const [cf,setCf]=useState('');const [conf,setConf]=useState(null);
+  const rows=data.clients.filter(c=>(c.name.toLowerCase().includes(q.toLowerCase())||c.city?.toLowerCase().includes(q.toLowerCase()))&&(!cf||c.categoryId===cf));
+  return(<><Hdr title="Clientes" right={<button className="btn bp bs" onClick={()=>setPage('clientForm')}>+ Novo</button>}/>
+    <div className="content">
+      <input className="sb" placeholder="🔍 Nome ou cidade…" value={q} onChange={e=>setQ(e.target.value)}/>
+      <select className="sb" value={cf} onChange={e=>setCf(e.target.value)}><option value="">Todas as categorias</option>{data.categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+      {rows.length===0&&<div className="empty"><div style={{fontSize:36}}>👥</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum cliente</div></div>}
+      {rows.map(c=>{const cat=data.categories.find(x=>x.id===c.categoryId);const vlen=data.visits.filter(v=>v.clientId===c.id).length;const olen=data.orders.filter(o=>o.clientId===c.id).length;return(<div key={c.id} className="cc"><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:3}}><div className="cn">{c.name}</div>{cat&&<span className="tag" style={{background:'var(--pl)',color:'var(--pd)',marginLeft:6,flexShrink:0}}>{cat.name}</span>}</div><div className="cm">{c.city&&<span>📍 {c.city}</span>}<span>📞 {c.phone1}</span><span>🏗️ {c.environments.length}</span><span>📋 {vlen}</span><span>🛒 {olen}</span></div><div className="cac"><button className="btn bo bs" onClick={()=>{setClientId(c.id);setPage('clientDetail')}}>Ver</button>{(c.mapsLink||c.lat)&&<button className="btn bg bs" onClick={()=>window.open(c.mapsLink||gurl(c.lat,c.lng),'_blank')}>🗺️</button>}<button className="btn bg bs" onClick={()=>{setEditId(c.id);setPage('clientForm')}}>✏️</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(c.id)}>🗑️</button></div></div>);})}
+    </div>
+    {conf&&<Confirm msg="Excluir cliente?" onOk={()=>{delClient(conf);setConf(null);showToast('Removido');}} onCancel={()=>setConf(null)}/>}
+  </>);
+}
+function ClientForm({store,setPage,editId,clearEdit}){
+  const {data,addClient,editClient,showToast}=store;
+  const ex=editId?data.clients.find(c=>c.id===editId):null;
+  const [form,setForm]=useState({name:ex?.name||'',phone1:ex?.phone1||'',phone2:ex?.phone2||'',categoryId:ex?.categoryId||'',city:ex?.city||'',neighborhood:ex?.neighborhood||'',address:ex?.address||'',lat:ex?.lat||'',lng:ex?.lng||'',mapsLink:ex?.mapsLink||'',notes:ex?.notes||''});
+  const [showMap,setShowMap]=useState(false);
+  const s=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}if(!form.phone1){showToast('⚠️ Telefone obrigatório');return;}if(!form.categoryId){showToast('⚠️ Categoria obrigatória');return;}const p={...form,lat:+form.lat||0,lng:+form.lng||0};if(editId)editClient(editId,p);else addClient(p);showToast(editId?'✅ Atualizado':'✅ Cadastrado');clearEdit();setPage('clients');};
+  return(<><Hdr title={editId?'Editar Cliente':'Novo Cliente'} onBack={()=>{clearEdit();setPage('clients')}}/>
+    <div className="content">
+      <div className="stitle">Informações Básicas</div>
+      <div className="field"><label>Nome *</label><input value={form.name} onChange={e=>s('name',e.target.value)} placeholder="Nome do cliente"/></div>
+      <div className="row2"><div className="field"><label>Telefone 1 *</label><input value={form.phone1} onChange={e=>s('phone1',maskPhone(e.target.value))} placeholder="(XX) XXXXX-XXXX" inputMode="tel"/></div><div className="field"><label>Telefone 2</label><input value={form.phone2} onChange={e=>s('phone2',maskPhone(e.target.value))} placeholder="(XX) XXXXX-XXXX" inputMode="tel"/></div></div>
+      <div className="field"><label>Categoria *</label><select value={form.categoryId} onChange={e=>s('categoryId',e.target.value)}><option value="">Selecione…</option>{data.categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+      <div className="field"><label>Observações</label><textarea value={form.notes} onChange={e=>s('notes',e.target.value)} placeholder="Anotações gerais…"/></div>
+      <div className="divr"/>
+      <div className="stitle">Localização</div>
+      <button onClick={()=>setShowMap(true)} style={{background:form.lat?'var(--primary)':'var(--pl)',color:form.lat?'#fff':'var(--pd)',border:'1.5px solid var(--primary)',borderRadius:12,padding:'13px 16px',display:'flex',alignItems:'center',gap:10,fontSize:15,fontWeight:700,width:'100%',justifyContent:'center',cursor:'pointer',marginBottom:13,minHeight:52}}><span style={{fontSize:24}}>🗺️</span>{form.lat?'Alterar localização':'Abrir mapa e marcar localização'}</button>
+      {form.lat&&form.lng&&<LocCard lat={form.lat} lng={form.lng} mapsLink={form.mapsLink} showToast={showToast} onEdit={()=>setShowMap(true)}/>}
+      <div className="row2"><div className="field"><label>Cidade</label><input value={form.city} onChange={e=>s('city',e.target.value)} placeholder="Cidade"/></div><div className="field"><label>Bairro</label><input value={form.neighborhood} onChange={e=>s('neighborhood',e.target.value)} placeholder="Bairro"/></div></div>
+      <div className="field"><label>Endereço</label><input value={form.address} onChange={e=>s('address',e.target.value)} placeholder="Rua, número…"/></div>
+      <button className="btn bp" style={{width:'100%',marginTop:6}} onClick={submit}>💾 {editId?'Salvar':'Cadastrar Cliente'}</button>
+    </div>
+    {showMap&&<MapPicker initLat={form.lat} initLng={form.lng} onSave={({lat,lng})=>{s('lat',lat);s('lng',lng);s('mapsLink',gurl(lat,lng));setShowMap(false);showToast('✅ Localização salva!');}} onCancel={()=>setShowMap(false)}/>}
+  </>);
+}
+function ClientDetail({store,clientId,setPage,setEditId,setEditOrderId}){
+  const {data,addEnv,editEnv,delEnv,updateStatus,addVisit,delVisit,showToast}=store;
+  const client=data.clients.find(c=>c.id===clientId);
+  const [tab,setTab]=useState('info');const [showEnv,setShowEnv]=useState(false);const [editEnvData,setEditEnvData]=useState(null);
+  const [showVisit,setShowVisit]=useState(false);const [conf,setConf]=useState(null);
+  if(!client)return null;
+  const cat=data.categories.find(c=>c.id===client.categoryId);
+  const visits=data.visits.filter(v=>v.clientId===clientId);
+  const orders=data.orders.filter(o=>o.clientId===clientId);
+  const st=client.activityStatus||{};
+  const doConf=()=>{if(conf.type==='env'){delEnv(clientId,conf.eid);showToast('Ambiente removido');}else{delVisit(conf.vid);showToast('Visita removida');}setConf(null);};
+  return(<><Hdr title={client.name} onBack={()=>setPage('clients')} right={<button className="hbtn" onClick={()=>{setEditId(clientId);setPage('clientForm')}}>✏️</button>}/>
+    <div className="content">
+      {cat&&<span className="chip" style={{marginBottom:8,display:'inline-flex'}}>{cat.name}</span>}
+      <div style={{fontSize:14,color:'var(--text2)',marginBottom:2}}>📞 {client.phone1}{client.phone2?' | '+client.phone2:''}</div>
+      {client.city&&<div style={{fontSize:14,color:'var(--text2)',marginBottom:10}}>📍 {client.city}{client.neighborhood?', '+client.neighborhood:''}</div>}
+      <div className="tabs">{[['info','ℹ️ Info'],['envs','🏗️ Amb.'],['visits','📋 Vis.'],['orders','🛒 Pedidos'],['status','📊 Status']].map(([k,l])=><div key={k} className={`tab${tab===k?' on':''}`} onClick={()=>setTab(k)}>{l}</div>)}</div>
+      {tab==='info'&&(<div>{(client.lat||client.mapsLink)&&<LocCard lat={client.lat} lng={client.lng} mapsLink={client.mapsLink} showToast={showToast}/>}<div className="stitle">Dados</div>{[['Nome',client.name],['Telefone 1',client.phone1],client.phone2&&['Telefone 2',client.phone2],['Cidade',client.city||'—'],['Bairro',client.neighborhood||'—'],['Endereço',client.address||'—'],client.lat&&['GPS',`${(+client.lat).toFixed(6)}, ${(+client.lng).toFixed(6)}`]].filter(Boolean).map(([l,v])=><div key={l} className="dr"><span className="dl">{l}</span><span className="dv">{v}</span></div>)}{client.notes&&<div style={{marginTop:11,padding:11,background:'var(--pl)',borderRadius:10,fontSize:14,color:'var(--text2)'}}>{client.notes}</div>}<button className="btn bp" style={{width:'100%',marginTop:14}} onClick={()=>setShowVisit(true)}>📋 Registrar Visita</button></div>)}
+      {tab==='envs'&&(<div><div className="shdr"><h3>Ambientes ({client.environments.length})</h3><button className="btn bp bs" onClick={()=>{setEditEnvData(null);setShowEnv(true);}}>+ Ambiente</button></div>{client.environments.length===0&&<div className="empty"><div style={{fontSize:36}}>🏗️</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum ambiente</div></div>}{client.environments.map(env=><EnvCard key={env.id} env={env} envTypes={data.envTypes} showToast={showToast} onEdit={()=>{setEditEnvData(env);setShowEnv(true);}} onDelete={()=>setConf({type:'env',eid:env.id})}/>)}</div>)}
+      {tab==='visits'&&(<div><div className="shdr"><h3>Visitas ({visits.length})</h3><button className="btn bp bs" onClick={()=>setShowVisit(true)}>+ Visita</button></div>{visits.length===0&&<div className="empty"><div style={{fontSize:36}}>📋</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhuma visita</div></div>}{visits.map(v=><div key={v.id} className="vi"><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700}}>{fd(v.date)}</span><span style={{fontSize:12,color:'var(--text3)'}}>{ft(v.date)}</span></div><div style={{fontSize:13,color:'var(--text2)',marginBottom:7}}>{v.notes}</div>{v.nextContact&&<div style={{fontSize:12,color:'var(--accent)',fontWeight:600,marginBottom:7}}>🔔 Próx: {fd(v.nextContact+'T00:00')}</div>}<div style={{display:'flex',gap:5,flexWrap:'wrap'}}><button className="btn bo bs" onClick={()=>window.open(calUrl(client,v),'_blank')}>📅 Agendar</button>{(client.mapsLink||client.lat)&&<button className="btn bg bs" onClick={()=>window.open(client.mapsLink||gurl(client.lat,client.lng),'_blank')}>🗺️</button>}<button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf({type:'visit',vid:v.id})}>🗑️</button></div></div>)}</div>)}
+      {tab==='orders'&&(<div><div className="shdr"><h3>Pedidos ({orders.length})</h3><button className="btn bpurple bs" onClick={()=>setPage('orderForm')}>+ Pedido</button></div>{orders.length===0&&<div className="empty"><div style={{fontSize:36}}>🛒</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum pedido</div></div>}{orders.map(o=>{const env=client.environments.find(e=>e.id===o.envId);return(<div key={o.id} className="order-card"><div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><div style={{display:'flex',gap:6,flexWrap:'wrap'}}><span className={`tag ${PAY_CLASS[o.paymentType]||''}`}>{PAY_LABELS[o.paymentType]}</span>{o.status&&<span className={`tag ${ORDER_STATUS[o.status]||''}`}>{ORDER_STATUS_LABEL[o.status]}</span>}</div><span style={{fontSize:12,color:'var(--text3)'}}>{fd(o.date)}</span></div>{env&&<div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>🏗️ {env.label}</div>}<div style={{fontWeight:800,fontSize:16,color:'var(--primary)',marginBottom:6}}>{fmtMoney(o.total)}</div><button className="btn bg bs" onClick={()=>{setEditOrderId(o.id);setPage('orderForm');}}>✏️ Ver/Editar</button></div>);})}</div>)}
+      {tab==='status'&&(<div><div className="stitle">Status de Atividade</div>{[['hasEquip','Já possui equipamento'],['bioPellets','Interesse — Bio Pellets'],['cavaco','Interesse — Cavaco'],['briquete','Interesse — Briquete'],['pellets','Interesse — Pellets']].map(([k,l])=><div key={k} className="schk" onClick={()=>updateStatus(clientId,{[k]:!st[k]})}><div className={`box${st[k]?' on':''}`}>{st[k]?'✓':''}</div><span style={{fontSize:14}}>{l}</span></div>)}{data.customStatusTypes.map(t=>{const checked=!!(st.customFlags?.[t.id]);return(<div key={t.id} className="schk" onClick={()=>updateStatus(clientId,{customFlags:{...st.customFlags,[t.id]:!checked}})}><div className={`box${checked?' on':''}`}>{checked?'✓':''}</div><span style={{fontSize:14}}>{t.label}</span></div>);})} <div className="field" style={{marginTop:13}}><label>Outros</label><textarea value={st.custom||''} onChange={e=>updateStatus(clientId,{custom:e.target.value})} placeholder="Informações adicionais…"/></div></div>)}
+    </div>
+    {conf&&<Confirm msg={conf.type==='env'?'Excluir ambiente?':'Excluir visita?'} onOk={doConf} onCancel={()=>setConf(null)}/>}
+    {showEnv&&<EnvModal store={{...store,addEnv,editEnv}} clientId={clientId} editEnvData={editEnvData} onClose={()=>{setShowEnv(false);setEditEnvData(null);}}/>}
+    {showVisit&&<VisitModal store={store} clientId={clientId} onClose={()=>setShowVisit(false)}/>}
+  </>);
+}
+
+/* ─── VISITS ─────────────────────────────────────────────────────────────── */
+function VisitModal({store,clientId,onClose}){
+  const {addVisit,showToast}=store;const now=new Date();const pad=n=>String(n).padStart(2,'0');
+  const def=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const [f,setF]=useState({date:def,notes:'',nextContact:''});const s=(k,v)=>setF(x=>({...x,[k]:v}));
+  const go=()=>{if(!f.notes){showToast('⚠️ Notas obrigatórias');return;}addVisit({clientId,date:f.date,notes:f.notes,nextContact:f.nextContact});showToast('✅ Visita registrada');onClose();};
+  return(<div className="ov" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}><div className="mhdl"/><div className="mtitle">📋 Registrar Visita</div><div className="row2"><div className="field"><label>Data e Hora</label><input type="datetime-local" value={f.date} onChange={e=>s('date',e.target.value)}/></div><div className="field"><label>Próx. Contato</label><input type="date" value={f.nextContact} onChange={e=>s('nextContact',e.target.value)}/></div></div><div className="field"><label>Notas *</label><textarea value={f.notes} onChange={e=>s('notes',e.target.value)} placeholder="O que foi visto, discutido…" style={{minHeight:90}}/></div><div className="cbar"><button className="btn bg" style={{flex:1}} onClick={onClose}>Cancelar</button><button className="btn bp" style={{flex:1}} onClick={go}>💾 Salvar</button></div></div></div>);
+}
+function VisitsList({store,setPage,setClientId}){
+  const {data,delVisit,showToast}=store;const [q,setQ]=useState('');const [conf,setConf]=useState(null);
+  const rows=data.visits.filter(v=>{const cl=data.clients.find(c=>c.id===v.clientId);return cl&&(cl.name.toLowerCase().includes(q.toLowerCase())||v.notes.toLowerCase().includes(q.toLowerCase()));});
+  return(<><Hdr title="📋 Visitas"/>
+    <div className="content">
+      <input className="sb" placeholder="🔍 Buscar…" value={q} onChange={e=>setQ(e.target.value)}/>
+      {rows.length===0&&<div className="empty"><div style={{fontSize:36}}>📋</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhuma visita</div></div>}
+      {rows.map(v=>{const cl=data.clients.find(c=>c.id===v.clientId);if(!cl)return null;const cat=data.categories.find(c=>c.id===cl.categoryId);return(<div key={v.id} className="vi"><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700,cursor:'pointer'}} onClick={()=>{setClientId(cl.id);setPage('clientDetail');}}>{cl.name}</span><div style={{fontSize:12,color:'var(--text3)',textAlign:'right'}}><div>{fd(v.date)}</div><div>{ft(v.date)}</div></div></div>{cat&&<span className="tag" style={{background:'var(--pl)',color:'var(--pd)',marginBottom:4,fontSize:11}}>{cat.name}</span>}<div style={{fontSize:13,color:'var(--text2)',marginBottom:7}}>{v.notes}</div>{v.nextContact&&<div style={{fontSize:12,color:'var(--accent)',fontWeight:600,marginBottom:7}}>🔔 Próx: {fd(v.nextContact+'T00:00')}</div>}<div style={{display:'flex',gap:5,flexWrap:'wrap'}}><button className="btn bo bs" onClick={()=>window.open(calUrl(cl,v),'_blank')}>📅</button>{(cl.mapsLink||cl.lat)&&<button className="btn bg bs" onClick={()=>window.open(cl.mapsLink||gurl(cl.lat,cl.lng),'_blank')}>🗺️</button>}<button className="btn bg bs" onClick={()=>{setClientId(cl.id);setPage('clientDetail');}}>Ver</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(v.id)}>🗑️</button></div></div>);})}
+    </div>
+    {conf&&<Confirm msg="Excluir visita?" onOk={()=>{delVisit(conf);setConf(null);showToast('Removida');}} onCancel={()=>setConf(null)}/>}
+  </>);
+}
+
+/* ─── EMPRESA PAGE ───────────────────────────────────────────────────────── */
+function EmpresaPage({store,setPage,setClientId}){
+  const {data,saveCompany,saveRepresentative,showToast}=store;
+  const [tab,setTab]=useState('mei');
+  const co=data.company||{};const rep=data.representative||{};
+  const [cf,setCf]=useState({...co});const [rf,setRf]=useState({name:rep.name||'',cities:rep.cities||[]});
+  const [newCity,setNewCity]=useState('');
+  const sc=(k,v)=>setCf(x=>({...x,[k]:v}));
+  const saveComp=()=>{saveCompany(cf);showToast('✅ MEI salva!');};
+  const saveRep=()=>{saveRepresentative({name:rf.name,cities:rf.cities});showToast('✅ Representante salvo!');};
+  const addCity=()=>{const c=newCity.trim();if(!c||rf.cities.includes(c))return;setRf(x=>({...x,cities:[...x.cities,c]}));setNewCity('');};
+  const delCity=c=>setRf(x=>({...x,cities:x.cities.filter(ci=>ci!==c)}));
+  return(<><Hdr title="🏢 Empresa" onBack={()=>setPage('home')}/>
+    <div className="content">
+      <div className="tabs">{[['mei','🏢 MEI'],['rep','👤 Representante'],['referrals','🤝 Indicadores'],['leads','📋 Pré-cadastros'],['commissions','💰 Comissões']].map(([k,l])=><div key={k} className={`tab${tab===k?' on':''}`} onClick={()=>setTab(k)}>{l}</div>)}</div>
+
+      {tab==='mei'&&(<div>
+        <div style={{fontSize:13,color:'var(--text2)',marginBottom:14}}>Aparece no cabeçalho dos relatórios e pedidos impressos.</div>
+        <div className="field"><label>Nome da MEI *</label><input value={cf.name||''} onChange={e=>sc('name',e.target.value)} placeholder="Ex: João Silva MEI"/></div>
+        <div className="row2"><div className="field"><label>CNPJ</label><input value={cf.cnpj||''} onChange={e=>sc('cnpj',maskCNPJ(e.target.value))} placeholder="00.000.000/0001-00" inputMode="numeric"/></div><div className="field"><label>Telefone</label><input value={cf.phone||''} onChange={e=>sc('phone',maskPhone(e.target.value))} placeholder="(XX) XXXXX-XXXX" inputMode="tel"/></div></div>
+        <div className="field"><label>Endereço</label><input value={cf.address||''} onChange={e=>sc('address',e.target.value)} placeholder="Rua, número, cidade"/></div>
+        <div className="divr"/>
+        <div className="stitle">Dados Bancários</div>
+        <div className="field"><label>Banco</label><input value={cf.bankName||''} onChange={e=>sc('bankName',e.target.value)} placeholder="Ex: Banco do Brasil"/></div>
+        <div className="row2"><div className="field"><label>Agência</label><input value={cf.bankAgency||''} onChange={e=>sc('bankAgency',e.target.value)} placeholder="0000-0" inputMode="numeric"/></div><div className="field"><label>Conta</label><input value={cf.bankAccount||''} onChange={e=>sc('bankAccount',e.target.value)} placeholder="00000-0" inputMode="numeric"/></div></div>
+        <div className="field"><label>Chave PIX</label><input value={cf.bankPix||''} onChange={e=>sc('bankPix',e.target.value)} placeholder="CPF, e-mail ou telefone"/></div>
+        <div className="divr"/><div className="stitle">Redes Sociais</div>
+        <div className="row2"><div className="field"><label>📸 Instagram</label><input value={cf.instagram||''} onChange={e=>sc('instagram',e.target.value)} placeholder="@usuario"/></div><div className="field"><label>📘 Facebook</label><input value={cf.facebook||''} onChange={e=>sc('facebook',e.target.value)} placeholder="@usuario"/></div></div>
+        <div className="row2"><div className="field"><label>🎵 TikTok</label><input value={cf.tiktok||''} onChange={e=>sc('tiktok',e.target.value)} placeholder="@usuario"/></div><div className="field"><label>🐦 X</label><input value={cf.x||''} onChange={e=>sc('x',e.target.value)} placeholder="@usuario"/></div></div>
+        <div className="field"><label>💼 LinkedIn</label><input value={cf.linkedin||''} onChange={e=>sc('linkedin',e.target.value)} placeholder="linkedin.com/in/usuario"/></div>
+        <button className="btn bp" style={{width:'100%'}} onClick={saveComp}>💾 Salvar MEI</button>
+      </div>)}
+
+      {tab==='rep'&&(<div>
+        <div className="field"><label>Nome do Representante</label><input value={rf.name} onChange={e=>setRf(x=>({...x,name:e.target.value}))} placeholder="Ex: João da Silva"/></div>
+        <div className="divr"/><div className="stitle">Cidades da Região ({rf.cities.length})</div>
+        <div style={{display:'flex',gap:8,marginBottom:12}}>
+          <input value={newCity} onChange={e=>setNewCity(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addCity()} placeholder="Nome da cidade…" style={{flex:1,border:'1.5px solid var(--border)',borderRadius:9,padding:'10px 13px',fontSize:15}}/>
+          <button className="btn bp" style={{flexShrink:0}} onClick={addCity}>+ Add</button>
+        </div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>{rf.cities.map(c=><div key={c} style={{display:'flex',alignItems:'center',gap:5,background:'var(--pl)',color:'var(--pd)',borderRadius:20,padding:'5px 12px',fontSize:13,fontWeight:600}}><span>📍 {c}</span><button onClick={()=>delCity(c)} style={{background:'none',border:'none',color:'var(--pd)',cursor:'pointer',fontSize:14}}>✕</button></div>)}</div>
+        <button className="btn bp" style={{width:'100%'}} onClick={saveRep}>💾 Salvar Representante</button>
+      </div>)}
+
+      {tab==='referrals'&&<ReferralsPanel store={store}/>}
+      {tab==='leads'&&<LeadsPanel store={store} setPage={setPage} setClientId={setClientId}/>}
+      {tab==='commissions'&&<CommissionsPanel store={store}/>}
+    </div>
+  </>);
+}
+
+/* ─── REFERRALS PANEL ────────────────────────────────────────────────────── */
+function ReferralsPanel({store}){
+  const {data,addReferral,editReferral,delReferral,showToast}=store;
+  const [form,setForm]=useState({name:'',cpf:'',phone:'',bankName:'',bankAgency:'',bankAccount:'',bankPix:'',commission:''});
+  const [editId,setEditId]=useState(null);const [conf,setConf]=useState(null);const [expId,setExpId]=useState(null);
+  const sf=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const reset=()=>{setForm({name:'',cpf:'',phone:'',bankName:'',bankAgency:'',bankAccount:'',bankPix:'',commission:''});setEditId(null);};
+  const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}const r={...form,commission:parseFloat((form.commission+'').replace(',','.'))||0};if(editId){editReferral(editId,r);showToast('✅ Atualizado');}else{addReferral(r);showToast('✅ Cadastrado');}reset();};
+  const startEdit=r=>{setForm({name:r.name,cpf:r.cpf||'',phone:r.phone||'',bankName:r.bankName||'',bankAgency:r.bankAgency||'',bankAccount:r.bankAccount||'',bankPix:r.bankPix||'',commission:r.commission||''});setEditId(r.id);};
+  const getComms=rid=>data.commissions.filter(c=>c.referralId===rid);
+  const totalPend=rid=>getComms(rid).filter(c=>c.status==='pendente').reduce((a,c)=>a+c.amount,0);
+  return(<div>
+    <div className="cc" style={{marginBottom:12}}>
+      <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>{editId?'Editar Indicador':'Novo Indicador'}</div>
+      <div className="field"><label>Nome *</label><input value={form.name} onChange={e=>sf('name',e.target.value)} placeholder="Nome completo"/></div>
+      <div className="row2"><div className="field"><label>CPF</label><input value={form.cpf} onChange={e=>sf('cpf',e.target.value)} placeholder="000.000.000-00" inputMode="numeric"/></div><div className="field"><label>Telefone</label><input value={form.phone} onChange={e=>sf('phone',maskPhone(e.target.value))} placeholder="(XX) XXXXX-XXXX" inputMode="tel"/></div></div>
+      <div className="field"><label>Comissão por venda (R$)</label><input value={form.commission} onChange={e=>sf('commission',e.target.value)} placeholder="0,00" inputMode="decimal"/></div>
+      <div className="stitle" style={{marginTop:4}}>Dados Bancários</div>
+      <div className="field"><label>Banco</label><input value={form.bankName} onChange={e=>sf('bankName',e.target.value)} placeholder="Banco"/></div>
+      <div className="row2"><div className="field"><label>Agência</label><input value={form.bankAgency} onChange={e=>sf('bankAgency',e.target.value)} placeholder="0000-0" inputMode="numeric"/></div><div className="field"><label>Conta</label><input value={form.bankAccount} onChange={e=>sf('bankAccount',e.target.value)} placeholder="00000-0" inputMode="numeric"/></div></div>
+      <div className="field"><label>PIX</label><input value={form.bankPix} onChange={e=>sf('bankPix',e.target.value)} placeholder="CPF, e-mail ou telefone"/></div>
+      <div className="cbar">{editId&&<button className="btn bg" style={{flex:1}} onClick={reset}>Cancelar</button>}<button className="btn bp" style={{flex:editId?1:'100%'}} onClick={submit}>{editId?'💾 Salvar':'+ Cadastrar'}</button></div>
+    </div>
+    <div className="stitle">Indicadores ({data.referrals.length})</div>
+    {data.referrals.map(r=>{
+      const comms=getComms(r.id);const pend=totalPend(r.id);const exp=expId===r.id;
+      return(<div key={r.id} className="cc">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+          <div><div style={{fontWeight:800,fontSize:15}}>{r.name}</div><div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>{r.phone&&`📞 ${r.phone}`}{r.cpf?` · CPF: ${r.cpf}`:''}</div><div style={{fontSize:13,color:'var(--primary)',fontWeight:700,marginTop:4}}>Comissão/venda: {fmtMoney(r.commission||0)}</div><div style={{fontSize:12,color:'var(--text2)'}}>Pedidos: {comms.length} · Pendente: {fmtMoney(pend)}</div></div>
+          <div style={{display:'flex',gap:5,flexShrink:0}}><button className="btn bg bs" style={{padding:'4px 9px'}} onClick={()=>setExpId(exp?null:r.id)}>{exp?'▲':'▼'}</button><button className="btn bg bs" onClick={()=>startEdit(r)}>✏️</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(r.id)}>🗑️</button></div>
+        </div>
+        {exp&&(<div style={{marginTop:10,borderTop:'1px solid var(--border)',paddingTop:10}}>
+          {r.bankName&&<div style={{fontSize:13,color:'var(--text2)',marginBottom:4}}>🏦 {r.bankName}{r.bankAgency?' | Ag: '+r.bankAgency:''}{r.bankAccount?' | Cc: '+r.bankAccount:''}</div>}
+          {r.bankPix&&<div style={{fontSize:13,color:'var(--text2)',marginBottom:8}}>PIX: {r.bankPix}</div>}
+          {comms.length>0&&comms.map(c=><div key={c.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)',fontSize:13}}><span>{c.clientName} <span style={{color:'var(--text3)'}}>{fd(c.orderDate)}</span> <span className={c.status==='paga'?'comm-paga':'comm-pendente'}>{c.status==='paga'?'Paga':'Pendente'}</span></span><span style={{fontWeight:700,color:'var(--primary)'}}>{fmtMoney(c.amount)}</span></div>)}
+        </div>)}
+      </div>);
+    })}
+    {conf&&<Confirm msg="Excluir indicador?" onOk={()=>{delReferral(conf);setConf(null);showToast('Removido');}} onCancel={()=>setConf(null)}/>}
+  </div>);
+}
+
+/* ─── LEADS PANEL (Pré-cadastros) ────────────────────────────────────────── */
+function LeadsPanel({store,setPage,setClientId}){
+  const {data,addLead,editLead,delLead,convertLead,showToast}=store;
+  const [form,setForm]=useState({name:'',phone:'',reference:'',referralId:'',notes:'',lat:'',lng:''});
+  const [editId,setEditId]=useState(null);const [conf,setConf]=useState(null);const [showMap,setShowMap]=useState(false);
+  const sf=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const reset=()=>{setForm({name:'',phone:'',reference:'',referralId:'',notes:'',lat:'',lng:''});setEditId(null);};
+  const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}const ref=data.referrals.find(r=>r.id===form.referralId);const l={name:form.name,phone:form.phone,reference:form.reference,referralId:form.referralId||null,referralName:ref?.name||null,notes:form.notes,lat:+form.lat||0,lng:+form.lng||0};if(editId){editLead(editId,l);showToast('✅ Atualizado');}else{addLead(l);showToast('✅ Pré-cadastro criado!');}reset();};
+  const startEdit=l=>{setForm({name:l.name,phone:l.phone||'',reference:l.reference||'',referralId:l.referralId||'',notes:l.notes||'',lat:l.lat||'',lng:l.lng||''});setEditId(l.id);};
+  const doConvert=leadId=>{const newClientId=convertLead(leadId);if(newClientId){showToast('✅ Convertido para cliente!');setClientId(newClientId);setPage('clientDetail');}};
+  const active=data.leads.filter(l=>l.status==='active');
+  const converted=data.leads.filter(l=>l.status==='converted');
+  return(<div>
+    <div className="cc" style={{marginBottom:12}}>
+      <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>{editId?'Editar Pré-cadastro':'Novo Pré-cadastro'}</div>
+      <div className="field"><label>Nome *</label><input value={form.name} onChange={e=>sf('name',e.target.value)} placeholder="Nome do prospecto"/></div>
+      <div className="field"><label>Telefone</label><input value={form.phone} onChange={e=>sf('phone',maskPhone(e.target.value))} placeholder="(XX) XXXXX-XXXX" inputMode="tel"/></div>
+      <div className="field"><label>Ponto de Referência</label><input value={form.reference} onChange={e=>sf('reference',e.target.value)} placeholder="Ex: Próximo ao silo da comunidade"/></div>
+      <div className="field"><label>Indicado por</label><select value={form.referralId} onChange={e=>sf('referralId',e.target.value)}><option value="">Nenhum indicador</option>{data.referrals.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
+      <div className="field"><label>Observações</label><textarea value={form.notes} onChange={e=>sf('notes',e.target.value)} placeholder="Interesse, potencial, observações…" style={{minHeight:60}}/></div>
+      {/* GPS */}
+      <button onClick={()=>setShowMap(true)} style={{background:form.lat?'var(--primary)':'var(--pl)',color:form.lat?'#fff':'var(--pd)',border:'1.5px solid var(--primary)',borderRadius:10,padding:'10px 14px',display:'flex',alignItems:'center',gap:8,fontSize:14,fontWeight:700,width:'100%',justifyContent:'center',cursor:'pointer',marginBottom:8,minHeight:44}}>
+        <span style={{fontSize:18}}>🗺️</span>{form.lat?`📍 ${(+form.lat).toFixed(4)}, ${(+form.lng).toFixed(4)} — Alterar`:'Marcar localização GPS'}
+      </button>
+      <div className="cbar">{editId&&<button className="btn bg" style={{flex:1}} onClick={reset}>Cancelar</button>}<button className="btn bteal" style={{flex:editId?1:'100%'}} onClick={submit}>{editId?'💾 Salvar':'➕ Cadastrar Lead'}</button></div>
+    </div>
+
+    <div className="stitle">Leads Ativos ({active.length})</div>
+    {active.length===0&&<div style={{fontSize:13,color:'var(--text3)',marginBottom:10}}>Nenhum lead ativo.</div>}
+    {active.map(l=>{
+      const ref=data.referrals.find(r=>r.id===l.referralId);
+      return(<div key={l.id} className="lead-card">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}><div><div style={{fontWeight:800,fontSize:15}}>{l.name}</div><div style={{fontSize:13,color:'var(--text2)'}}>{l.phone&&`📞 ${l.phone}`}</div></div><div style={{display:'flex',gap:5}}><button className="btn bg bs" onClick={()=>startEdit(l)}>✏️</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(l.id)}>🗑️</button></div></div>
+        {l.reference&&<div style={{fontSize:13,color:'var(--text2)',marginBottom:4}}>📍 {l.reference}</div>}
+        {(l.referralName||ref?.name)&&<div style={{fontSize:12,color:'var(--teal)',fontWeight:600,marginBottom:4}}>🤝 Indicado por: {l.referralName||ref?.name}</div>}
+        {l.notes&&<div style={{fontSize:12,color:'var(--text3)',marginBottom:8,fontStyle:'italic'}}>{l.notes}</div>}
+        {l.lat&&l.lng&&<div style={{fontSize:11,color:'var(--text3)',marginBottom:8,fontFamily:'monospace'}}>GPS: {(+l.lat).toFixed(5)}, {(+l.lng).toFixed(5)}</div>}
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+          <button className="btn bp bs" onClick={()=>doConvert(l.id)}>✅ Converter para Cliente</button>
+          {l.lat&&l.lng&&<button className="btn bg bs" onClick={()=>window.open(gurl(l.lat,l.lng),'_blank')}>🗺️</button>}
+        </div>
+      </div>);
+    })}
+
+    {converted.length>0&&(<><div className="stitle" style={{marginTop:14}}>Convertidos ({converted.length})</div>
+    {converted.map(l=>{const ref=data.referrals.find(r=>r.id===l.referralId);const cl=data.clients.find(c=>c.id===l.convertedClientId);return(<div key={l.id} className="cc" style={{opacity:.7}}><div style={{fontWeight:600}}>{l.name} <span style={{fontSize:12,color:'var(--primary)',fontWeight:700}}>✅ Convertido</span></div>{cl&&<div style={{fontSize:12,color:'var(--text2)'}}>→ Cliente: {cl.name}</div>}{(l.referralName||ref?.name)&&<div style={{fontSize:11,color:'var(--text3)'}}>🤝 {l.referralName||ref?.name}</div>}</div>);})}</>)}
+
+    {conf&&<Confirm msg="Excluir pré-cadastro?" onOk={()=>{delLead(conf);setConf(null);showToast('Removido');}} onCancel={()=>setConf(null)}/>}
+    {showMap&&<MapPicker initLat={form.lat} initLng={form.lng} onSave={({lat,lng})=>{sf('lat',lat);sf('lng',lng);setShowMap(false);showToast('📍 Localização salva!');}} onCancel={()=>setShowMap(false)}/>}
+  </div>);
+}
+
+/* ─── COMMISSIONS PANEL ──────────────────────────────────────────────────── */
+function CommissionsPanel({store}){
+  const {data,payCommission,showToast}=store;
+  const [filterRef,setFilterRef]=useState('');const [filterStatus,setFilterStatus]=useState('');
+  const comms=data.commissions.filter(c=>{if(filterRef&&c.referralId!==filterRef)return false;if(filterStatus&&c.status!==filterStatus)return false;return true;});
+  const totalPend=comms.filter(c=>c.status==='pendente').reduce((a,c)=>a+c.amount,0);
+  const totalPago=comms.filter(c=>c.status==='paga').reduce((a,c)=>a+c.amount,0);
+  return(<div>
+    <div style={{background:'var(--purplel)',borderRadius:12,padding:14,marginBottom:14}}>
+      <div style={{fontSize:12,fontWeight:600,color:'var(--purple)',marginBottom:8,textTransform:'uppercase',letterSpacing:'.05em'}}>💰 Resumo de Comissões</div>
+      <div className="row2">
+        <div style={{textAlign:'center',background:'#fff',borderRadius:8,padding:8}}><div style={{fontWeight:800,fontSize:16,color:'#92400e'}}>{fmtMoney(totalPend)}</div><div style={{fontSize:11,color:'var(--text3)'}}>Pendente</div></div>
+        <div style={{textAlign:'center',background:'#fff',borderRadius:8,padding:8}}><div style={{fontWeight:800,fontSize:16,color:'var(--primary)'}}>{fmtMoney(totalPago)}</div><div style={{fontSize:11,color:'var(--text3)'}}>Pago</div></div>
+      </div>
+    </div>
+    <div className="sbox">
+      <div className="row2">
+        <div className="field"><label>Indicador</label><select value={filterRef} onChange={e=>setFilterRef(e.target.value)}><option value="">Todos</option>{data.referrals.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
+        <div className="field"><label>Status</label><select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}><option value="">Todos</option><option value="pendente">Pendente</option><option value="paga">Paga</option></select></div>
+      </div>
+    </div>
+    {comms.length===0&&<div style={{fontSize:13,color:'var(--text3)',textAlign:'center',padding:20}}>Nenhuma comissão encontrada.<br/><span style={{fontSize:12}}>Comissões são geradas ao marcar um pedido como "Pago".</span></div>}
+    {comms.map(c=>(
+      <div key={c.id} className="comm-card">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}>
+          <div><div style={{fontWeight:700,fontSize:14}}>{c.referralName}</div><div style={{fontSize:12,color:'var(--text2)'}}>Cliente: {c.clientName}</div><div style={{fontSize:11,color:'var(--text3)'}}>{fd(c.orderDate)} · Pedido total: {fmtMoney(c.orderTotal||0)}</div></div>
+          <div style={{textAlign:'right'}}><div style={{fontWeight:800,fontSize:16,color:'var(--primary)'}}>{fmtMoney(c.amount)}</div><span className={c.status==='paga'?'comm-paga':'comm-pendente'}>{c.status==='paga'?'✅ Paga':'⏳ Pendente'}</span></div>
+        </div>
+        {c.status==='paga'&&c.paidAt&&<div style={{fontSize:11,color:'var(--text3)'}}>Pago em: {fd(c.paidAt)}</div>}
+        {c.status==='pendente'&&(
+          <button className="btn bp bs" style={{marginTop:8,width:'100%'}} onClick={()=>{payCommission(c.id);showToast('✅ Comissão marcada como paga!');}}>💰 Marcar como Paga (Baixa)</button>
+        )}
+      </div>
+    ))}
+    <div style={{fontSize:12,color:'var(--text3)',marginTop:10,padding:10,background:'var(--bg)',borderRadius:8}}>ℹ️ Comissões pagas são registradas como "baixa" mas nunca excluídas do histórico.</div>
+  </div>);
+}
+
+/* ─── APP ROOT ───────────────────────────────────────────────────────────── */
+function App(){
+  const store=useStore();
+  const [page,setPage]=useState(getInitialPage());
+  const [clientId,setClientId]=useState(null);
+  const [editId,setEditId]=useState(null);
+  const [editProductId,setEditProductId]=useState(null);
+  const [editOrderId,setEditOrderId]=useState(null);
+  useEffect(()=>{try{const url=new URL(window.location.href);if(page==='home')url.searchParams.delete('page');else url.searchParams.set('page',page);window.history.replaceState({},'',url);}catch{}},[page]);
+  const go=p=>{setPage(p);if(!['clientForm','clientDetail','productForm','orderForm','empresa'].includes(p)){setEditId(null);setEditProductId(null);setEditOrderId(null);}};
+  const render=()=>{
+    switch(page){
+      case 'home':return<Dashboard store={store} setPage={go} setClientId={setClientId}/>;
+      case 'clients':return<ClientsList store={store} setPage={go} setClientId={setClientId} setEditId={setEditId}/>;
+      case 'clientForm':return<ClientForm store={store} setPage={go} editId={editId} clearEdit={()=>setEditId(null)}/>;
+      case 'clientDetail':return<ClientDetail store={store} clientId={clientId} setPage={go} setEditId={setEditId} setEditOrderId={setEditOrderId}/>;
+      case 'visits':return<VisitsList store={store} setPage={go} setClientId={setClientId}/>;
+      case 'products':return<ProductsList store={store} setPage={go} setEditProductId={setEditProductId}/>;
+      case 'productForm':return<ProductForm store={store} setPage={go} editId={editProductId} clearEdit={()=>setEditProductId(null)}/>;
+      case 'orders':return<OrdersList store={store} setPage={go} setClientId={setClientId} setEditOrderId={setEditOrderId}/>;
+      case 'orderForm':return<OrderForm store={store} setPage={go} editId={editOrderId} clearEdit={()=>setEditOrderId(null)}/>;
+      case 'reports':return<ReportsPage store={store}/>;
+      case 'empresa':return<EmpresaPage store={store} setPage={go} setClientId={setClientId}/>;
+      default:return<Dashboard store={store} setPage={go} setClientId={setClientId}/>;
+    }
+  };
+  return<>{render()}<Nav page={page} go={go}/><Toast msg={store.toast}/></>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
