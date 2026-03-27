@@ -4,20 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>ThermoVisit — Visitas de Campo</title>
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#1e3a8a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Caixeiro Viajante">
-<link rel="apple-touch-icon" href="/icons/icon-192.png">
-<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icons/icon-192.png">
+<link rel="icon" href="./icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="Assets/visitas.css"></script>
+<link rel="stylesheet" href="assets/visitas.css"/>
 </head>
 <body>
 <div id="root"></div>
@@ -124,6 +124,9 @@ function markBackup(){localStorage.setItem('cv_last_backup',new Date().toISOStri
 function getLastBackup(){return localStorage.getItem('cv_last_backup');}
 function snoozeBackupReminder(hours=3){localStorage.setItem('cv_backup_snooze_until',new Date(Date.now()+hours*60*60*1000).toISOString());}
 function getBackupSnooze(){return localStorage.getItem('cv_backup_snooze_until');}
+// What are these keys?????
+// TODO: verify these keys
+// TODO: verify what is workspace principal.
 const CLOUD_CFG_KEY='cv_cloud_cfg_v1';
 const CLOUD_SYNC_URL='/api/sync';
 function loadCloudCfg(){
