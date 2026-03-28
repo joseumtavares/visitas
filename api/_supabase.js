@@ -22,6 +22,7 @@ function cors(res, req) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
 }
+
 async function sb(path, { method = 'GET', body, headers = {} } = {}) {
   assertEnv();
   const r = await fetch(`${process.env.SUPABASE_URL}${path}`, {
