@@ -4,25 +4,158 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>ThermoVisit — Visitas de Campo</title>
-<link rel="manifest" href="./manifest.json">
+<link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1e3a8a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Caixeiro Viajante">
-<link rel="apple-touch-icon" href="./icons/icons/icon-192.png">
-<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="icon" href="/icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<link rel="stylesheet" href="assets/visitas.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f0f4f0;--card:#fff;--border:#e2e8e2;
+  --primary:#1a6b3a;--pl:#e8f5ee;--pd:#0f4523;
+  --accent:#d97706;--acl:#fef3c7;
+  --danger:#dc2626;--dangerl:#fee2e2;
+  --info:#1d4ed8;--infol:#dbeafe;
+  --purple:#6d28d9;--purplel:#ede9fe;
+  --teal:#0d9488;--teall:#ccfbf1;
+  --text:#1a2e1a;--text2:#4a6050;--text3:#8aab90;
+  --r:12px;--sh:0 1px 3px rgba(0,0,0,.08);--shm:0 4px 14px rgba(0,0,0,.13);
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+#root{display:flex;flex-direction:column;min-height:100vh}
+button{cursor:pointer;border:none;background:none;font-family:inherit}
+input,select,textarea{font-family:inherit;font-size:15px;outline:none;color:var(--text)}
+.hdr{background:var(--pd);color:#fff;padding:13px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
+.hdr-t{font-size:17px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbtn{background:rgba(255,255,255,.18);color:#fff;border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;flex-shrink:0}
+.nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:100;box-shadow:0 -2px 10px rgba(0,0,0,.06)}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 2px 9px;cursor:pointer;color:var(--text3);font-size:9px;font-weight:600;gap:2px;min-height:55px;transition:color .15s}
+.ni.on{color:var(--primary)}
+.content{flex:1;padding:16px;padding-bottom:82px;max-width:600px;width:100%;margin:0 auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;transition:all .15s;min-height:44px;cursor:pointer;border:none}
+.bp{background:var(--primary);color:#fff}.bp:active{background:var(--pd)}
+.bo{background:transparent;color:var(--primary);border:1.5px solid var(--primary)}.bo:active{background:var(--pl)}
+.bd{background:var(--danger);color:#fff}
+.bg{background:transparent;color:var(--text2);border:1px solid var(--border)}.bg:active{background:var(--bg)}
+.bpurple{background:var(--purple);color:#fff}
+.bteal{background:var(--teal);color:#fff}
+.bgreen{background:#16a34a;color:#fff}
+.bs{padding:7px 12px;font-size:13px;min-height:36px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:13px}
+.field label{font-size:13px;font-weight:600;color:var(--text2)}
+.field input,.field select,.field textarea{border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;background:var(--card);width:100%;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}
+.field textarea{resize:vertical;min-height:78px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.stitle{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+.shdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.shdr h3{font-size:15px;font-weight:700}
+.divr{height:1px;background:var(--border);margin:14px 0}
+.chip{display:inline-flex;align-items:center;padding:4px 12px;background:var(--pl);color:var(--pd);border-radius:20px;font-size:13px;font-weight:600}
+.tag{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600}
+.cbar{display:flex;gap:8px;margin-top:12px}
+.schk{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.box{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px}
+.box.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.scard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:11px 8px;text-align:center}
+.snum{font-size:22px;font-weight:800;color:var(--primary);line-height:1}
+.slbl{font-size:10px;color:var(--text3);font-weight:600;margin-top:2px}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.qbtn{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;cursor:pointer}
+.qbtn:active{border-color:var(--primary);background:var(--pl)}
+.cc{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px}
+.cn{font-size:16px;font-weight:700;margin-bottom:3px}
+.cm{font-size:13px;color:var(--text2);display:flex;gap:8px;flex-wrap:wrap;margin-bottom:5px}
+.cac{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
+.vi{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px;border-left:4px solid var(--primary)}
+.order-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px;border-left:4px solid var(--purple)}
+.lead-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px;border-left:4px solid var(--teal)}
+.comm-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px}
+.product-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px}
+.report-row{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px;margin-bottom:7px}
+.tabs{display:flex;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:14px;overflow-x:auto}
+.tab{flex:1;padding:7px 6px;border-radius:7px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;color:var(--text2);white-space:nowrap;min-width:fit-content}
+.tab.on{background:var(--card);color:var(--primary);box-shadow:var(--sh)}
+.dr{display:flex;padding:8px 0;border-bottom:1px solid var(--border);gap:10px;align-items:flex-start}
+.dl{font-size:13px;color:var(--text2);min-width:100px;font-weight:600;flex-shrink:0}
+.dv{font-size:13px;flex:1;word-break:break-word}
+.ecard{background:var(--pl);border:1px solid #b7d9c4;border-radius:10px;padding:13px;margin-bottom:10px}
+.fcard{background:#f4fbf6;border:1px solid #cce6d6;border-radius:9px;padding:11px;margin:8px 0}
+.info-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:#d1fae5;color:#065f46}
+.pill-blue{background:#dbeafe;color:#1e40af}
+.pill-amber{background:#fef3c7;color:#92400e}
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:8px 0}
+.photo-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;background:#f0f0f0}
+.photo-upload{width:100%;aspect-ratio:1;border:2px dashed var(--border);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:11px;font-weight:600;gap:4px;background:var(--bg)}
+.photo-upload:active{border-color:var(--primary);background:var(--pl)}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:600;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.lightbox img{max-width:95vw;max-height:80vh;border-radius:10px;object-fit:contain}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:300;display:flex;align-items:flex-end}
+.modal{background:var(--card);border-radius:18px 18px 0 0;width:100%;max-height:93vh;overflow-y:auto;padding:19px}
+.mhdl{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 15px}
+.mtitle{font-size:16px;font-weight:800;margin-bottom:13px}
+.empty{text-align:center;padding:36px 20px;color:var(--text3)}
+.sb{background:var(--card);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;width:100%;margin-bottom:9px;font-size:15px;color:var(--text)}
+.sb:focus{border-color:var(--primary)}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;background:#1a2e1a;color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:var(--shm);animation:tf .2s ease;white-space:nowrap;max-width:92vw}
+@keyframes tf{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.sbox{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:12px}
+.sbox-title{font-size:13px;font-weight:800;color:var(--pd);margin-bottom:11px;display:flex;align-items:center;gap:6px}
+.toggle-group{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
+.tpill{padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;border:1.5px solid var(--border);color:var(--text2);cursor:pointer;transition:all .15s}
+.tpill.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.pay-avista{background:#d1fae5;color:#065f46}
+.pay-parcelado{background:#dbeafe;color:#1e40af}
+.pay-financiamento{background:#ede9fe;color:#5b21b6}
+.status-pago{background:#d1fae5;color:#065f46}
+.status-pendente{background:#fef3c7;color:#92400e}
+.status-cancelado{background:#fee2e2;color:#b91c1c}
+.mapov{position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;background:#1a1a1a}
+.maphdr{background:var(--pd);color:#fff;padding:12px 15px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.maphdr-t{flex:1;font-size:15px;font-weight:700}
+.mapftr{background:var(--card);padding:11px 15px;flex-shrink:0;border-top:1px solid var(--border)}
+.mapcoords{font-size:12px;color:var(--text2);text-align:center;margin-bottom:9px;min-height:18px}
+.minimap{width:100%;height:150px;border-radius:10px;border:1px solid var(--border);overflow:hidden;margin-bottom:10px}
+.locbox{background:#f0faf4;border:1.5px solid #9fd4b4;border-radius:12px;padding:13px;margin-bottom:12px}
+.locbox-t{font-size:12px;font-weight:700;color:var(--pd);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.live-dot{animation:gps-pulse 2s ease-in-out infinite}
+@keyframes gps-pulse{0%,100%{opacity:1}50%{opacity:.55}}
+.order-item-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.order-total{background:var(--pd);color:#fff;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+.export-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.summary-box{background:var(--pd);color:#fff;border-radius:12px;padding:14px;margin-bottom:14px}
+/* Client autocomplete */
+.autocomplete-wrap{position:relative}
+.autocomplete-drop{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1.5px solid var(--primary);border-top:none;border-radius:0 0 9px 9px;max-height:200px;overflow-y:auto;z-index:200;box-shadow:var(--shm)}
+.autocomplete-item{padding:10px 13px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border)}
+.autocomplete-item:active,.autocomplete-item:hover{background:var(--pl)}
+/* Backup reminder */
+.backup-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:800;display:flex;align-items:center;justify-content:center;padding:20px}
+.backup-box{background:var(--card);border-radius:18px;padding:24px;max-width:360px;width:100%;text-align:center}
+/* Commission badge */
+.comm-pendente{background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.comm-paga{background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+@media print{.nav,.hdr,.export-bar,.no-print{display:none!important}body{background:#fff}.content{padding-bottom:0;max-width:100%}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,useMemo}=React;
+const flushSync=ReactDOM.flushSync||((fn)=>fn());
 
 /* ─── PHOTO STORE (IndexedDB) ────────────────────────────────────────────── */
 const PS=(()=>{
@@ -63,6 +196,29 @@ const PS=(()=>{
   };
   return{save,get,getFull,del,getAll,getSize,cache};
 })();
+
+/* ─── SUPABASE STORAGE (via Vercel API) ─────────────────────────────────── */
+async function uploadPhotoToCloud(photoId, dataUrl, syncKey, workspace){
+  try{
+    const blob=await(await fetch(dataUrl)).blob();
+    const formData=new FormData();
+    formData.append('photo',blob,`${photoId}.jpg`);
+    formData.append('photoId',photoId);
+    formData.append('workspace',workspace||'principal');
+    const r=await fetch(STORAGE_SYNC_URL,{method:'POST',headers:{'x-app-key':syncKey,'x-workspace':workspace||'principal'},body:formData});
+    const d=await r.json().catch(()=>({}));
+    return d.ok?d.url:null;
+  }catch{return null;}
+}
+
+async function downloadPhotoFromCloud(photoId, syncKey, workspace){
+  try{
+    const r=await fetch(`${STORAGE_SYNC_URL}?photoId=${encodeURIComponent(photoId)}&workspace=${encodeURIComponent(workspace||'principal')}`,{headers:{'x-app-key':syncKey}});
+    if(!r.ok)return null;
+    const blob=await r.blob();
+    return new Promise(res=>{const fr=new FileReader();fr.onload=e=>res(e.target.result);fr.readAsDataURL(blob);});
+  }catch{return null;}
+}
 
 /* ─── PHOTO COMPRESSION ─────────────────────────────────────────────────── */
 async function compressImage(file,maxPx=1280,quality=0.82){
@@ -124,11 +280,9 @@ function markBackup(){localStorage.setItem('cv_last_backup',new Date().toISOStri
 function getLastBackup(){return localStorage.getItem('cv_last_backup');}
 function snoozeBackupReminder(hours=3){localStorage.setItem('cv_backup_snooze_until',new Date(Date.now()+hours*60*60*1000).toISOString());}
 function getBackupSnooze(){return localStorage.getItem('cv_backup_snooze_until');}
-// What are these keys?????
-// TODO: verify these keys
-// TODO: verify what is workspace principal.
 const CLOUD_CFG_KEY='cv_cloud_cfg_v1';
 const CLOUD_SYNC_URL='/api/sync';
+const STORAGE_SYNC_URL='/api/photos';
 function loadCloudCfg(){
   try{
     const raw=localStorage.getItem(CLOUD_CFG_KEY);
@@ -141,7 +295,7 @@ function persistCloudCfg(cfg){
   try{localStorage.setItem(CLOUD_CFG_KEY,JSON.stringify({workspace:(cfg.workspace||'principal').trim()||'principal',syncKey:(cfg.syncKey||'').trim(),autoSync:cfg.autoSync!==false}));return true;}catch{return false;}
 }
 function normalizeDataState(s){
-  const normalized=s?{...INIT,...s,leads:s.leads||[],commissions:s.commissions||[],referrals:s.referrals||[],company:s.company||INIT.company,representative:s.representative||INIT.representative,customStatusTypes:s.customStatusTypes||INIT.customStatusTypes}:INIT;
+  const normalized=s?{...INIT,...s,leads:s.leads||[],commissions:s.commissions||[],repCommissions:s.repCommissions||[],referrals:s.referrals||[],company:s.company||INIT.company,representative:s.representative||INIT.representative,customStatusTypes:s.customStatusTypes||INIT.customStatusTypes}:INIT;
   const meta=s?._meta||{};
   return{...normalized,_meta:{schemaVersion:5,localUpdatedAt:meta.localUpdatedAt||meta.cloudUpdatedAt||new Date().toISOString(),cloudUpdatedAt:meta.cloudUpdatedAt||null,lastCloudPullAt:meta.lastCloudPullAt||null,lastCloudPushAt:meta.lastCloudPushAt||null}};
 }
@@ -169,7 +323,7 @@ const INIT={
   envTypes:[{id:'1',name:'Estufa de Fumo'},{id:'2',name:'Secador de Grãos'},{id:'3',name:'Piscina'},{id:'4',name:'Forno'},{id:'5',name:'Defumador'},{id:'6',name:'Caldeira'},{id:'7',name:'Sauna'},{id:'8',name:'Aviário'},{id:'9',name:'Tanque de Peixe'}],
   productCategories:[{id:'1',name:'Aviário'},{id:'2',name:'Equipamentos'},{id:'3',name:'Fumageiro'},{id:'4',name:'Piscicultura'},{id:'5',name:'Secador de Grãos'}],
   customStatusTypes:[{id:'1',label:'Financiamento em análise'},{id:'2',label:'Aguardando proposta'},{id:'3',label:'Proposta enviada'},{id:'4',label:'Negociação em andamento'}],
-  products:[],clients:[],visits:[],orders:[],
+  products:[],clients:[],visits:[],orders:[],repCommissions:[],
   referrals:[],leads:[],commissions:[],
   company:{name:'',cnpj:'',phone:'',bankName:'',bankAgency:'',bankAccount:'',bankPix:'',address:'',tiktok:'',facebook:'',instagram:'',x:'',linkedin:''},
   representative:{name:'',cities:[]},
@@ -357,16 +511,49 @@ function useStore(){
       const cl=d.clients.find(c=>c.id===o.clientId);
       const already=d.commissions.find(c=>c.orderId===id);
       if(!already&&ref){
+        // Calcular valor da comissão: fixo ou percentual
+        const commType=o.commissionType||ref.commissionType||'fixed';
+        let amount=0;
+        if(commType==='percent'){
+          const pct=parseFloat(o.commissionPct||ref.commissionPct||0);
+          amount=Math.round((o.total||0)*(pct/100)*100)/100;
+        }else{
+          amount=parseFloat(o.commissionValue||ref.commission||0);
+        }
         newComm=[{
           id:uuid(),referralId:o.referralId,referralName:ref.name,
           orderId:id,clientId:o.clientId,clientName:cl?.name||'—',
-          amount:ref.commission||0,status:'pendente',
+          amount,commissionType:commType,status:'pendente',
+          receiptPhotoIds:[],
           createdAt:new Date().toISOString(),paidAt:null,
           orderDate:old?.date,orderTotal:o.total
         },...newComm];
       }
     }
-    return{...d,orders:newOrders,commissions:newComm};
+    // ── Comissão do Representante (por produto) ──────────────────
+    let newRepComm=[...d.repCommissions];
+    if(o.status==='pago'&&old?.status!=='pago'){
+      const alreadyRep=d.repCommissions.find(c=>c.orderId===id);
+      if(!alreadyRep){
+        (o.items||[]).forEach(item=>{
+          const prod=d.products.find(p=>p.id===item.productId);
+          const pct=parseFloat(prod?.repCommissionPct||0);
+          if(pct>0){
+            const amount=Math.round((item.unitPrice||0)*(item.qty||1)*(pct/100)*100)/100;
+            newRepComm=[{
+              id:uuid(),orderId:id,
+              orderDate:old?.date||new Date().toISOString(),
+              clientId:o.clientId,clientName:d.clients.find(c=>c.id===o.clientId)?.name||'—',
+              productId:item.productId,productName:item.productName||prod?.name||'—',
+              qty:item.qty||1,unitPrice:item.unitPrice||0,
+              repCommissionPct:pct,amount,
+              orderTotal:o.total,status:'pendente',paidAt:null,receiptPhotoIds:[],
+            },...newRepComm];
+          }
+        });
+      }
+    }
+    return{...d,orders:newOrders,commissions:newComm,repCommissions:newRepComm};
   });
   const delOrder=id=>up(d=>({...d,orders:d.orders.filter(x=>x.id!==id),commissions:d.commissions.filter(c=>c.orderId!==id)}));
 
@@ -384,7 +571,7 @@ function useStore(){
     up(d=>{
       const lead=d.leads.find(l=>l.id===leadId);if(!lead)return d;
       newClientId=uuid();
-      const newClient={id:newClientId,name:lead.name,phone1:lead.phone,phone2:'',categoryId:'',city:'',neighborhood:'',address:lead.reference||'',lat:lead.lat||0,lng:lead.lng||0,mapsLink:lead.lat?`https://maps.google.com/?q=${lead.lat},${lead.lng}`:'',notes:`Convertido de pré-cadastro. Referência: ${lead.reference||''}. Indicado por: ${lead.referralName||d.referrals.find(r=>r.id===lead.referralId)?.name||'—'}`,environments:[],activityStatus:{hasEquip:false,bioPellets:false,cavaco:false,briquete:false,pellets:false,customFlags:{},custom:''}};
+      const mapsUrl=lead.mapsLink||(lead.lat&&lead.lng?`https://maps.google.com/?q=${lead.lat},${lead.lng}`:'');const newClient={id:newClientId,name:lead.name,phone1:lead.phone,phone2:'',categoryId:'',city:'',neighborhood:'',address:lead.reference||'',lat:lead.lat||0,lng:lead.lng||0,mapsLink:mapsUrl,notes:`Convertido de pré-cadastro. Referência: ${lead.reference||''}. Indicado por: ${lead.referralName||d.referrals.find(r=>r.id===lead.referralId)?.name||'—'}`,environments:[],activityStatus:{hasEquip:false,bioPellets:false,cavaco:false,briquete:false,pellets:false,customFlags:{},custom:''}};
       return{...d,clients:[...d.clients,newClient],leads:d.leads.map(l=>l.id===leadId?{...l,status:'converted',convertedClientId:newClientId}:l)};
     });
     return newClientId;
@@ -392,6 +579,9 @@ function useStore(){
 
   // commissions
   const payCommission=id=>up(d=>({...d,commissions:d.commissions.map(c=>c.id===id?{...c,status:'paga',paidAt:new Date().toISOString()}:c)}));
+  const payRepCommission=id=>up(d=>({...d,repCommissions:d.repCommissions.map(c=>c.id===id?{...c,status:'paga',paidAt:new Date().toISOString()}:c)}));
+  const updateRepCommissionReceipt=(id,photoIds)=>up(d=>({...d,repCommissions:d.repCommissions.map(c=>c.id===id?{...c,receiptPhotoIds:photoIds}:c)}));
+  const updateCommissionReceipt=(id,photoIds)=>up(d=>({...d,commissions:d.commissions.map(c=>c.id===id?{...c,receiptPhotoIds:photoIds}:c)}));
 
   // company
   const saveCompany=c=>up(d=>({...d,company:{...d.company,...c}}));
@@ -445,7 +635,7 @@ function useStore(){
     }catch{showToast('⚠️ Arquivo inválido');}
   };
 
-  return{data,toast,showToast,addCat,editCat,delCat,addET,editET,delET,addPC,editPC,delPC,addCST,editCST,delCST,addProduct,editProduct,delProduct,addClient,editClient,delClient,addEnv,editEnv,delEnv,updateStatus,addVisit,delVisit,addOrder,editOrder,delOrder,addReferral,editReferral,delReferral,addLead,editLead,delLead,convertLead,payCommission,saveCompany,saveRepresentative,exportBackup,getBackupPreview,importBackup,cloudCfg,saveCloudConfig,pullFromCloud,pushToCloud,syncState,cleanupOrphanPhotos};
+  return{data,toast,showToast,addCat,editCat,delCat,addET,editET,delET,addPC,editPC,delPC,addCST,editCST,delCST,addProduct,editProduct,delProduct,addClient,editClient,delClient,addEnv,editEnv,delEnv,updateStatus,addVisit,delVisit,addOrder,editOrder,delOrder,addReferral,editReferral,delReferral,addLead,editLead,delLead,convertLead,payCommission,updateCommissionReceipt,payRepCommission,updateRepCommissionReceipt,saveCompany,saveRepresentative,exportBackup,getBackupPreview,importBackup,cloudCfg,saveCloudConfig,pullFromCloud,pushToCloud,syncState,cleanupOrphanPhotos};
 }
 
 /* ─── HELPERS ────────────────────────────────────────────────────────────── */
@@ -491,7 +681,7 @@ function Toast({msg}){return msg?<div className="toast">{msg}</div>:null}
 function Confirm({msg,onOk,onCancel}){return(<div className="ov" onClick={onCancel}><div className="modal" onClick={e=>e.stopPropagation()} style={{borderRadius:18}}><div className="mhdl"/><p style={{fontSize:15,fontWeight:700,marginBottom:7}}>{msg}</p><p style={{fontSize:13,color:'var(--text2)',marginBottom:14}}>Esta ação não pode ser desfeita.</p><div className="cbar"><button className="btn bg" style={{flex:1}} onClick={onCancel}>Cancelar</button><button className="btn bd" style={{flex:1}} onClick={onOk}>Confirmar</button></div></div></div>);}
 function Hdr({title,onBack,right}){return(<div className="hdr">{onBack&&<button className="hbtn" onClick={onBack}>←</button>}<span className="hdr-t">{title}</span>{right}</div>);}
 function Nav({page,go}){
-  const items=[['home','🏠','Início'],['clients','👥','Clientes'],['orders','🛒','Vendas'],['reports','📊','Relatórios'],['empresa','🏢','Empresa']];
+  const items=[['home','🏠','Início'],['clients','👥','Clientes'],['orders','🛒','Vendas'],['repcommissions','💰','Comissões'],['empresa','🏢','Empresa']];
   const cur=items.map(x=>x[0]).includes(page)?page:'home';
   return(<div className="nav">{items.map(([k,ic,lb])=><div key={k} className={`ni${cur===k?' on':''}`} onClick={()=>go(k)}><span style={{fontSize:20}}>{ic}</span><span>{lb}</span></div>)}</div>);
 }
@@ -548,7 +738,7 @@ function PhotoImg({pid,style,onClick}){
   return <img src={src} style={{...style,objectFit:'cover',borderRadius:8}} onClick={onClick} alt=""/>;
 }
 function PhotoUploader({photoIds,onChange,label,contextName}){
-  const ref=useRef(null);const [lb,setLb]=useState(null);const [previews,setPreviews]=useState({});
+  const ref=useRef(null);const galRef=useRef(null);const [lb,setLb]=useState(null);const [previews,setPreviews]=useState({});
   const [saving,setSaving]=useState(false);const [saveProgress,setSaveProgress]=useState('');
   useEffect(()=>{(photoIds||[]).forEach(id=>{if(!previews[id])PS.get(id).then(d=>{if(d)setPreviews(p=>({...p,[id]:d}));});});},[photoIds]);
   const handle=async files=>{
@@ -592,7 +782,10 @@ function PhotoUploader({photoIds,onChange,label,contextName}){
             <button onClick={()=>remove(id)} style={{position:'absolute',top:3,right:3,background:'rgba(0,0,0,.6)',color:'#fff',borderRadius:'50%',width:20,height:20,fontSize:11,display:'flex',alignItems:'center',justifyContent:'center',border:'none',cursor:'pointer'}}>✕</button>
           </div>
         ))}
-        <div className="photo-upload" onClick={()=>ref.current.click()}><span style={{fontSize:22}}>📷</span><span>Adicionar</span></div>
+        <div style={{display:'flex',flexDirection:'column',gap:4}}>
+          <div className="photo-upload" onClick={()=>ref.current.click()} style={{padding:'8px 4px'}}><span style={{fontSize:18}}>📷</span><span style={{fontSize:10}}>Câmera</span></div>
+          <div className="photo-upload" onClick={()=>galRef.current.click()} style={{padding:'8px 4px',borderColor:'var(--info)'}}><span style={{fontSize:18}}>🖼️</span><span style={{fontSize:10}}>Galeria</span></div>
+        </div>
       </div>
       {photoIds&&photoIds.length>0&&(
         <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
@@ -603,6 +796,7 @@ function PhotoUploader({photoIds,onChange,label,contextName}){
       )}
       {saveProgress&&<div style={{fontSize:12,color:'var(--primary)',fontWeight:600,marginTop:5}}>{saveProgress}</div>}
       <input ref={ref} type="file" accept="image/*" multiple capture="environment" style={{display:'none'}} onChange={e=>handle(Array.from(e.target.files))}/>
+      <input ref={galRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={e=>handle(Array.from(e.target.files))}/>
       {lb&&(
         <div className="lightbox" onClick={()=>setLb(null)}>
           <img src={lb.src} alt="" onClick={e=>e.stopPropagation()}/>
@@ -1016,15 +1210,18 @@ function ProductsList({store,setPage,setEditProductId}){
 function ProductForm({store,setPage,editId,clearEdit}){
   const {data,addProduct,editProduct,showToast}=store;
   const ex=editId?data.products.find(p=>p.id===editId):null;
-  const [f,setF]=useState({name:ex?.name||'',model:ex?.model||'',categoryId:ex?.categoryId||'',dimensions:ex?.dimensions||'',color:ex?.color||'',price:ex?.price||'',notes:ex?.notes||'',photoIds:ex?.photoIds||[]});
+  const [f,setF]=useState({name:ex?.name||'',model:ex?.model||'',categoryId:ex?.categoryId||'',dimensions:ex?.dimensions||'',color:ex?.color||'',price:ex?.price||'',repCommissionPct:ex?.repCommissionPct||'',notes:ex?.notes||'',photoIds:ex?.photoIds||[]});
   const s=(k,v)=>setF(x=>({...x,[k]:v}));
-  const submit=()=>{if(!f.name){showToast('⚠️ Nome obrigatório');return;}if(!f.categoryId){showToast('⚠️ Categoria obrigatória');return;}const p={...f,price:parseFloat((f.price+'').replace(',','.'))||0};if(editId)editProduct(editId,p);else addProduct(p);showToast(editId?'✅ Atualizado':'✅ Cadastrado');clearEdit();setPage('products');};
+  const submit=()=>{if(!f.name){showToast('⚠️ Nome obrigatório');return;}if(!f.categoryId){showToast('⚠️ Categoria obrigatória');return;}const p={...f,price:parseFloat((f.price+'').replace(',','.'))||0,repCommissionPct:parseFloat((f.repCommissionPct+'').replace(',','.'))||0};if(editId)editProduct(editId,p);else addProduct(p);showToast(editId?'✅ Atualizado':'✅ Cadastrado');clearEdit();setPage('products');};
   return(<><Hdr title={editId?'Editar Produto':'Novo Produto'} onBack={()=>{clearEdit();setPage('products')}}/>
     <div className="content">
       <div className="field"><label>Nome *</label><input value={f.name} onChange={e=>s('name',e.target.value)} placeholder="Ex: Bioqueimador a Pellets"/></div>
       <div className="row2"><div className="field"><label>Modelo</label><input value={f.model} onChange={e=>s('model',e.target.value)} placeholder="Ex: BQ-200"/></div><div className="field"><label>Categoria *</label><select value={f.categoryId} onChange={e=>s('categoryId',e.target.value)}><option value="">Selecione…</option>{data.productCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div></div>
       <div className="row2"><div className="field"><label>Dimensões</label><input value={f.dimensions} onChange={e=>s('dimensions',e.target.value)} placeholder="50×30×20 cm"/></div><div className="field"><label>Cor</label><input value={f.color} onChange={e=>s('color',e.target.value)} placeholder="Preto fosco"/></div></div>
-      <div className="field"><label>Valor (R$) *</label><input value={f.price} onChange={e=>s('price',e.target.value)} placeholder="0,00" inputMode="decimal"/></div>
+      <div className="row2">
+  <div className="field"><label>Valor (R$) *</label><input value={f.price} onChange={e=>s('price',e.target.value)} placeholder="0,00" inputMode="decimal"/></div>
+  <div className="field"><label>% Comissão Representante</label><input value={f.repCommissionPct} onChange={e=>s('repCommissionPct',e.target.value)} placeholder="Ex: 5" inputMode="decimal"/></div>
+</div>
       <div className="field"><label>Descrição</label><textarea value={f.notes} onChange={e=>s('notes',e.target.value)} placeholder="Características técnicas…"/></div>
       <div className="sbox"><PhotoUploader photoIds={f.photoIds} onChange={v=>s('photoIds',v)} label="📷 Fotos do Produto" contextName={f.name||'produto'}/></div>
       <button className="btn bp" style={{width:'100%'}} onClick={submit}>💾 {editId?'Salvar':'Cadastrar'}</button>
@@ -1076,6 +1273,9 @@ function OrderForm({store,setPage,editId,clearEdit}){
   const [installments,setInstallments]=useState(ex?.installments||'');
   const [finStatus,setFinStatus]=useState(ex?.finStatus||'pendente');
   const [referralId,setReferralId]=useState(ex?.referralId||'');
+  const [commissionType,setCommissionType]=useState(ex?.commissionType||'');
+  const [commissionValue,setCommissionValue]=useState(ex?.commissionValue||'');
+  const [commissionPct,setCommissionPct]=useState(ex?.commissionPct||'');
   const [orderStatus,setOrderStatus]=useState(ex?.status||'pendente');
   const [notes,setNotes]=useState(ex?.notes||'');
   const [items,setItems]=useState(ex?.items||[]);
@@ -1117,7 +1317,18 @@ function OrderForm({store,setPage,editId,clearEdit}){
         <div className="toggle-group">{[['pendente','⏳ Pendente'],['pago','✅ Pago'],['cancelado','❌ Cancelado']].map(([v,l])=><button key={v} className={`tpill${orderStatus===v?' on':''}`} onClick={()=>setOrderStatus(v)}>{l}</button>)}</div>
         {orderStatus==='pago'&&referralId&&<div style={{background:'var(--pl)',borderRadius:8,padding:'8px 12px',fontSize:13,color:'var(--pd)',fontWeight:600}}>✅ Ao salvar, uma comissão será gerada automaticamente para o indicador.</div>}
       </div>
-      {data.referrals.length>0&&<div className="sbox"><div className="sbox-title">🤝 Indicação</div><div className="field" style={{marginBottom:0}}><label>Indicado por</label><select value={referralId} onChange={e=>setReferralId(e.target.value)}><option value="">Sem indicação</option>{data.referrals.map(r=><option key={r.id} value={r.id}>{r.name} — comissão {fmtMoney(r.commission||0)}</option>)}</select></div></div>}
+      {data.referrals.length>0&&<div className="sbox"><div className="sbox-title">🤝 Indicação</div>
+        <div className="field"><label>Indicado por</label><select value={referralId} onChange={e=>{setReferralId(e.target.value);const ref=data.referrals.find(r=>r.id===e.target.value);if(ref){setCommissionType(ref.commissionType||'fixed');setCommissionValue(ref.commission||'');setCommissionPct(ref.commissionPct||'');}}}><option value="">Sem indicação</option>{data.referrals.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
+        {referralId&&<div style={{background:'var(--purplel)',borderRadius:9,padding:10}}>
+          <div style={{fontSize:12,fontWeight:700,color:'var(--purple)',marginBottom:6}}>💰 Comissão deste pedido</div>
+          <div style={{display:'flex',gap:6,marginBottom:6}}>
+            <button type="button" onClick={()=>setCommissionType('fixed')} className={`tpill${commissionType==='fixed'?' on':''}`} style={{flex:1,fontSize:12}}>R$ Fixo</button>
+            <button type="button" onClick={()=>setCommissionType('percent')} className={`tpill${commissionType==='percent'?' on':''}`} style={{flex:1,fontSize:12}}>% Percentual</button>
+          </div>
+          {commissionType==='fixed'&&<div className="field" style={{marginBottom:0}}><label>Valor Fixo (R$)</label><input value={commissionValue} onChange={e=>setCommissionValue(e.target.value)} placeholder="0,00" inputMode="decimal"/></div>}
+          {commissionType==='percent'&&<div className="field" style={{marginBottom:0}}><label>Percentual (%)</label><input value={commissionPct} onChange={e=>setCommissionPct(e.target.value)} placeholder="Ex: 5" inputMode="decimal"/></div>}
+        </div>}
+      </div>}
       <div className="field"><label>Observações</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Condições, prazo…"/></div>
       <div style={{display:'flex',gap:8}}>
         <button className="btn bp" style={{flex:2}} onClick={submit}>💾 {editId?'Salvar':'Registrar'}</button>
@@ -1177,7 +1388,26 @@ function ClientsList({store,setPage,setClientId,setEditId}){
 function ClientForm({store,setPage,editId,clearEdit}){
   const {data,addClient,editClient,showToast}=store;
   const ex=editId?data.clients.find(c=>c.id===editId):null;
-  const [form,setForm]=useState({name:ex?.name||'',phone1:ex?.phone1||'',phone2:ex?.phone2||'',categoryId:ex?.categoryId||'',city:ex?.city||'',neighborhood:ex?.neighborhood||'',address:ex?.address||'',lat:ex?.lat||'',lng:ex?.lng||'',mapsLink:ex?.mapsLink||'',notes:ex?.notes||''});
+  const [form,setForm]=useState({name:ex?.name||'',phone1:ex?.phone1||'',phone2:ex?.phone2||'',categoryId:ex?.categoryId||'',city:ex?.city||'',neighborhood:ex?.neighborhood||'',address:ex?.address||'',lat:ex?.lat||'',lng:ex?.lng||'',mapsLink:ex?.mapsLink||'',notes:ex?.notes||'',cep:ex?.cep||''});
+  const [cepLoading,setCepLoading]=useState(false);
+  const buscarCep=async(cep)=>{
+    const digits=cep.replace(/\D/g,'');
+    if(digits.length!==8){showToast('⚠️ CEP deve ter 8 dígitos');return;}
+    setCepLoading(true);
+    try{
+      const r=await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const d=await r.json();
+      if(d.erro){showToast('⚠️ CEP não encontrado');setCepLoading(false);return;}
+      setForm(f=>({...f,
+        address:d.logradouro||(f.address||''),
+        neighborhood:d.bairro||f.neighborhood||'',
+        city:d.localidade||f.city||'',
+        cep:digits,
+      }));
+      showToast('✅ Endereço preenchido pelo CEP!');
+    }catch{showToast('⚠️ Erro ao buscar CEP');}
+    setCepLoading(false);
+  };
   const [showMap,setShowMap]=useState(false);
   const s=(k,v)=>setForm(f=>({...f,[k]:v}));
   const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}if(!form.phone1){showToast('⚠️ Telefone obrigatório');return;}if(!form.categoryId){showToast('⚠️ Categoria obrigatória');return;}const p={...form,lat:+form.lat||0,lng:+form.lng||0};if(editId)editClient(editId,p);else addClient(p);showToast(editId?'✅ Atualizado':'✅ Cadastrado');clearEdit();setPage('clients');};
@@ -1192,13 +1422,46 @@ function ClientForm({store,setPage,editId,clearEdit}){
       <div className="stitle">Localização</div>
       <button onClick={()=>setShowMap(true)} style={{background:form.lat?'var(--primary)':'var(--pl)',color:form.lat?'#fff':'var(--pd)',border:'1.5px solid var(--primary)',borderRadius:12,padding:'13px 16px',display:'flex',alignItems:'center',gap:10,fontSize:15,fontWeight:700,width:'100%',justifyContent:'center',cursor:'pointer',marginBottom:13,minHeight:52}}><span style={{fontSize:24}}>🗺️</span>{form.lat?'Alterar localização':'Abrir mapa e marcar localização'}</button>
       {form.lat&&form.lng&&<LocCard lat={form.lat} lng={form.lng} mapsLink={form.mapsLink} showToast={showToast} onEdit={()=>setShowMap(true)}/>}
-      <div className="row2"><div className="field"><label>Cidade</label><input value={form.city} onChange={e=>s('city',e.target.value)} placeholder="Cidade"/></div><div className="field"><label>Bairro</label><input value={form.neighborhood} onChange={e=>s('neighborhood',e.target.value)} placeholder="Bairro"/></div></div>
+      <div className="field"><label>CEP</label><div style={{display:'flex',gap:6}}>
+  <input value={form.cep||''} onChange={e=>setForm(f=>({...f,cep:e.target.value.replace(/\D/g,'').slice(0,8)}))} placeholder="00000000" inputMode="numeric" maxLength={8} style={{flex:1,border:'1.5px solid var(--border)',borderRadius:9,padding:'10px 13px',background:'var(--card)',fontSize:15}}/>
+  <button onClick={()=>buscarCep(form.cep||'')} disabled={cepLoading} style={{background:'var(--teal)',color:'#fff',border:'none',borderRadius:9,padding:'0 14px',fontWeight:700,fontSize:13,cursor:'pointer',flexShrink:0,minHeight:44}}>{cepLoading?'⏳':'🔍 Buscar'}</button>
+</div></div>
+<div className="row2"><div className="field"><label>Cidade</label><input value={form.city} onChange={e=>s('city',e.target.value)} placeholder="Cidade"/></div><div className="field"><label>Bairro</label><input value={form.neighborhood} onChange={e=>s('neighborhood',e.target.value)} placeholder="Bairro"/></div></div>
       <div className="field"><label>Endereço</label><input value={form.address} onChange={e=>s('address',e.target.value)} placeholder="Rua, número…"/></div>
       <button className="btn bp" style={{width:'100%',marginTop:6}} onClick={submit}>💾 {editId?'Salvar':'Cadastrar Cliente'}</button>
     </div>
     {showMap&&<MapPicker initLat={form.lat} initLng={form.lng} onSave={({lat,lng})=>{s('lat',lat);s('lng',lng);s('mapsLink',gurl(lat,lng));setShowMap(false);showToast('✅ Localização salva!');}} onCancel={()=>setShowMap(false)}/>}
   </>);
 }
+function StatusManagerInline({store}){
+  const {data,addCST,editCST,delCST,showToast}=store;
+  const [show,setShow]=useState(false);
+  const [newLabel,setNewLabel]=useState('');
+  const [editId,setEditId]=useState(null);
+  const [editLabel,setEditLabel]=useState('');
+  if(!show)return(<button onClick={()=>setShow(true)} style={{background:'var(--bg)',border:'1px solid var(--border)',borderRadius:8,padding:'6px 12px',fontSize:12,fontWeight:600,color:'var(--text2)',cursor:'pointer',marginBottom:10,width:'100%'}}>⚙️ Gerenciar status personalizados</button>);
+  return(<div style={{background:'var(--bg)',borderRadius:10,padding:12,marginBottom:12,border:'1px solid var(--border)'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+      <span style={{fontSize:13,fontWeight:700,color:'var(--pd)'}}>⚙️ Status Personalizados</span>
+      <button onClick={()=>setShow(false)} style={{background:'none',border:'none',fontSize:16,cursor:'pointer',color:'var(--text3)'}}>✕</button>
+    </div>
+    {data.customStatusTypes.map(t=>(<div key={t.id} style={{display:'flex',gap:6,alignItems:'center',marginBottom:6}}>
+      {editId===t.id
+        ?<><input value={editLabel} onChange={e=>setEditLabel(e.target.value)} style={{flex:1,border:'1.5px solid var(--primary)',borderRadius:7,padding:'6px 10px',fontSize:13}} autoFocus/>
+          <button onClick={()=>{editCST(t.id,{label:editLabel});setEditId(null);showToast('✅ Atualizado');}} style={{background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,padding:'6px 10px',fontSize:12,cursor:'pointer'}}>💾</button>
+          <button onClick={()=>setEditId(null)} style={{background:'var(--bg)',border:'1px solid var(--border)',borderRadius:7,padding:'6px 10px',fontSize:12,cursor:'pointer'}}>✕</button></>
+        :<><span style={{flex:1,fontSize:13}}>{t.label}</span>
+          <button onClick={()=>{setEditId(t.id);setEditLabel(t.label);}} style={{background:'none',border:'1px solid var(--border)',borderRadius:7,padding:'4px 8px',fontSize:12,cursor:'pointer'}}>✏️</button>
+          <button onClick={()=>{delCST(t.id);showToast('Removido');}} style={{background:'none',border:'1px solid var(--dangerl)',borderRadius:7,padding:'4px 8px',fontSize:12,cursor:'pointer',color:'var(--danger)'}}>🗑️</button></>
+      }
+    </div>))}
+    <div style={{display:'flex',gap:6,marginTop:8}}>
+      <input value={newLabel} onChange={e=>setNewLabel(e.target.value)} placeholder="Novo status..." style={{flex:1,border:'1.5px solid var(--border)',borderRadius:7,padding:'7px 10px',fontSize:13}}/>
+      <button onClick={()=>{if(!newLabel.trim()){showToast('⚠️ Digite um nome');return;}addCST({label:newLabel.trim()});setNewLabel('');showToast('✅ Adicionado');}} style={{background:'var(--primary)',color:'#fff',border:'none',borderRadius:7,padding:'7px 12px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Add</button>
+    </div>
+  </div>);
+}
+
 function ClientDetail({store,clientId,setPage,setEditId,setEditOrderId}){
   const {data,addEnv,editEnv,delEnv,updateStatus,addVisit,delVisit,showToast}=store;
   const client=data.clients.find(c=>c.id===clientId);
@@ -1220,7 +1483,7 @@ function ClientDetail({store,clientId,setPage,setEditId,setEditOrderId}){
       {tab==='envs'&&(<div><div className="shdr"><h3>Ambientes ({client.environments.length})</h3><button className="btn bp bs" onClick={()=>{setEditEnvData(null);setShowEnv(true);}}>+ Ambiente</button></div>{client.environments.length===0&&<div className="empty"><div style={{fontSize:36}}>🏗️</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum ambiente</div></div>}{client.environments.map(env=><EnvCard key={env.id} env={env} envTypes={data.envTypes} showToast={showToast} onEdit={()=>{setEditEnvData(env);setShowEnv(true);}} onDelete={()=>setConf({type:'env',eid:env.id})}/>)}</div>)}
       {tab==='visits'&&(<div><div className="shdr"><h3>Visitas ({visits.length})</h3><button className="btn bp bs" onClick={()=>setShowVisit(true)}>+ Visita</button></div>{visits.length===0&&<div className="empty"><div style={{fontSize:36}}>📋</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhuma visita</div></div>}{visits.map(v=><div key={v.id} className="vi"><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700}}>{fd(v.date)}</span><span style={{fontSize:12,color:'var(--text3)'}}>{ft(v.date)}</span></div><div style={{fontSize:13,color:'var(--text2)',marginBottom:7}}>{v.notes}</div>{v.nextContact&&<div style={{fontSize:12,color:'var(--accent)',fontWeight:600,marginBottom:7}}>🔔 Próx: {fd(v.nextContact+'T00:00')}</div>}<div style={{display:'flex',gap:5,flexWrap:'wrap'}}><button className="btn bo bs" onClick={()=>window.open(calUrl(client,v),'_blank')}>📅 Agendar</button>{(client.mapsLink||client.lat)&&<button className="btn bg bs" onClick={()=>window.open(client.mapsLink||gurl(client.lat,client.lng),'_blank')}>🗺️</button>}<button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf({type:'visit',vid:v.id})}>🗑️</button></div></div>)}</div>)}
       {tab==='orders'&&(<div><div className="shdr"><h3>Pedidos ({orders.length})</h3><button className="btn bpurple bs" onClick={()=>setPage('orderForm')}>+ Pedido</button></div>{orders.length===0&&<div className="empty"><div style={{fontSize:36}}>🛒</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum pedido</div></div>}{orders.map(o=>{const env=client.environments.find(e=>e.id===o.envId);return(<div key={o.id} className="order-card"><div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><div style={{display:'flex',gap:6,flexWrap:'wrap'}}><span className={`tag ${PAY_CLASS[o.paymentType]||''}`}>{PAY_LABELS[o.paymentType]}</span>{o.status&&<span className={`tag ${ORDER_STATUS[o.status]||''}`}>{ORDER_STATUS_LABEL[o.status]}</span>}</div><span style={{fontSize:12,color:'var(--text3)'}}>{fd(o.date)}</span></div>{env&&<div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>🏗️ {env.label}</div>}<div style={{fontWeight:800,fontSize:16,color:'var(--primary)',marginBottom:6}}>{fmtMoney(o.total)}</div><button className="btn bg bs" onClick={()=>{setEditOrderId(o.id);setPage('orderForm');}}>✏️ Ver/Editar</button></div>);})}</div>)}
-      {tab==='status'&&(<div><div className="stitle">Status de Atividade</div>{[['hasEquip','Já possui equipamento'],['bioPellets','Interesse — Bio Pellets'],['cavaco','Interesse — Cavaco'],['briquete','Interesse — Briquete'],['pellets','Interesse — Pellets']].map(([k,l])=><div key={k} className="schk" onClick={()=>updateStatus(clientId,{[k]:!st[k]})}><div className={`box${st[k]?' on':''}`}>{st[k]?'✓':''}</div><span style={{fontSize:14}}>{l}</span></div>)}{data.customStatusTypes.map(t=>{const checked=!!(st.customFlags?.[t.id]);return(<div key={t.id} className="schk" onClick={()=>updateStatus(clientId,{customFlags:{...st.customFlags,[t.id]:!checked}})}><div className={`box${checked?' on':''}`}>{checked?'✓':''}</div><span style={{fontSize:14}}>{t.label}</span></div>);})} <div className="field" style={{marginTop:13}}><label>Outros</label><textarea value={st.custom||''} onChange={e=>updateStatus(clientId,{custom:e.target.value})} placeholder="Informações adicionais…"/></div></div>)}
+      {tab==='status'&&(<div><div className="stitle">Status de Atividade</div><StatusManagerInline store={store}/>{[['hasEquip','Já possui equipamento'],['bioPellets','Interesse — Bio Pellets'],['cavaco','Interesse — Cavaco'],['briquete','Interesse — Briquete'],['pellets','Interesse — Pellets']].map(([k,l])=><div key={k} className="schk" onClick={()=>updateStatus(clientId,{[k]:!st[k]})}><div className={`box${st[k]?' on':''}`}>{st[k]?'✓':''}</div><span style={{fontSize:14}}>{l}</span></div>)}{data.customStatusTypes.map(t=>{const checked=!!(st.customFlags?.[t.id]);return(<div key={t.id} className="schk" onClick={()=>updateStatus(clientId,{customFlags:{...st.customFlags,[t.id]:!checked}})}><div className={`box${checked?' on':''}`}>{checked?'✓':''}</div><span style={{fontSize:14}}>{t.label}</span></div>);})} <div className="field" style={{marginTop:13}}><label>Outros</label><textarea value={st.custom||''} onChange={e=>updateStatus(clientId,{custom:e.target.value})} placeholder="Informações adicionais…"/></div></div>)}
     </div>
     {conf&&<Confirm msg={conf.type==='env'?'Excluir ambiente?':'Excluir visita?'} onOk={doConf} onCancel={()=>setConf(null)}/>}
     {showEnv&&<EnvModal store={{...store,addEnv,editEnv}} clientId={clientId} editEnvData={editEnvData} onClose={()=>{setShowEnv(false);setEditEnvData(null);}}/>}
@@ -1303,12 +1566,12 @@ function EmpresaPage({store,setPage,setClientId}){
 /* ─── REFERRALS PANEL ────────────────────────────────────────────────────── */
 function ReferralsPanel({store}){
   const {data,addReferral,editReferral,delReferral,showToast}=store;
-  const [form,setForm]=useState({name:'',cpf:'',phone:'',bankName:'',bankAgency:'',bankAccount:'',bankPix:'',commission:''});
+  const [form,setForm]=useState({name:'',cpf:'',phone:'',bankName:'',bankAgency:'',bankAccount:'',bankPix:'',commission:'',commissionType:'fixed',commissionPct:''});
   const [editId,setEditId]=useState(null);const [conf,setConf]=useState(null);const [expId,setExpId]=useState(null);
   const sf=(k,v)=>setForm(f=>({...f,[k]:v}));
-  const reset=()=>{setForm({name:'',cpf:'',phone:'',bankName:'',bankAgency:'',bankAccount:'',bankPix:'',commission:''});setEditId(null);};
-  const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}const r={...form,commission:parseFloat((form.commission+'').replace(',','.'))||0};if(editId){editReferral(editId,r);showToast('✅ Atualizado');}else{addReferral(r);showToast('✅ Cadastrado');}reset();};
-  const startEdit=r=>{setForm({name:r.name,cpf:r.cpf||'',phone:r.phone||'',bankName:r.bankName||'',bankAgency:r.bankAgency||'',bankAccount:r.bankAccount||'',bankPix:r.bankPix||'',commission:r.commission||''});setEditId(r.id);};
+  const reset=()=>{setForm({name:'',cpf:'',phone:'',bankName:'',bankAgency:'',bankAccount:'',bankPix:'',commission:'',commissionType:'fixed',commissionPct:''});setEditId(null);};
+  const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}const r={...form,commission:parseFloat((form.commission+'').replace(',','.'))||0,commissionPct:parseFloat((form.commissionPct+'').replace(',','.'))||0};if(editId){editReferral(editId,r);showToast('✅ Atualizado');}else{addReferral(r);showToast('✅ Cadastrado');}reset();};
+  const startEdit=r=>{setForm({name:r.name,cpf:r.cpf||'',phone:r.phone||'',bankName:r.bankName||'',bankAgency:r.bankAgency||'',bankAccount:r.bankAccount||'',bankPix:r.bankPix||'',commission:r.commission||'',commissionType:r.commissionType||'fixed',commissionPct:r.commissionPct||''});setEditId(r.id);};
   const getComms=rid=>data.commissions.filter(c=>c.referralId===rid);
   const totalPend=rid=>getComms(rid).filter(c=>c.status==='pendente').reduce((a,c)=>a+c.amount,0);
   return(<div>
@@ -1316,7 +1579,12 @@ function ReferralsPanel({store}){
       <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>{editId?'Editar Indicador':'Novo Indicador'}</div>
       <div className="field"><label>Nome *</label><input value={form.name} onChange={e=>sf('name',e.target.value)} placeholder="Nome completo"/></div>
       <div className="row2"><div className="field"><label>CPF</label><input value={form.cpf} onChange={e=>sf('cpf',e.target.value)} placeholder="000.000.000-00" inputMode="numeric"/></div><div className="field"><label>Telefone</label><input value={form.phone} onChange={e=>sf('phone',maskPhone(e.target.value))} placeholder="(XX) XXXXX-XXXX" inputMode="tel"/></div></div>
-      <div className="field"><label>Comissão por venda (R$)</label><input value={form.commission} onChange={e=>sf('commission',e.target.value)} placeholder="0,00" inputMode="decimal"/></div>
+      <div className="field"><label>Tipo de Comissão</label><div style={{display:'flex',gap:6,marginTop:2}}>
+  <button type="button" onClick={()=>sf('commissionType','fixed')} className={`tpill${form.commissionType==='fixed'?' on':''}`} style={{flex:1}}>💰 Valor Fixo</button>
+  <button type="button" onClick={()=>sf('commissionType','percent')} className={`tpill${form.commissionType==='percent'?' on':''}`} style={{flex:1}}>📊 Percentual</button>
+</div></div>
+{form.commissionType==='fixed'&&<div className="field"><label>Valor Fixo por Venda (R$)</label><input value={form.commission} onChange={e=>sf('commission',e.target.value)} placeholder="0,00" inputMode="decimal"/></div>}
+{form.commissionType==='percent'&&<div className="field"><label>Percentual sobre Venda (%)</label><input value={form.commissionPct} onChange={e=>sf('commissionPct',e.target.value)} placeholder="Ex: 5" inputMode="decimal"/></div>}
       <div className="stitle" style={{marginTop:4}}>Dados Bancários</div>
       <div className="field"><label>Banco</label><input value={form.bankName} onChange={e=>sf('bankName',e.target.value)} placeholder="Banco"/></div>
       <div className="row2"><div className="field"><label>Agência</label><input value={form.bankAgency} onChange={e=>sf('bankAgency',e.target.value)} placeholder="0000-0" inputMode="numeric"/></div><div className="field"><label>Conta</label><input value={form.bankAccount} onChange={e=>sf('bankAccount',e.target.value)} placeholder="00000-0" inputMode="numeric"/></div></div>
@@ -1345,12 +1613,46 @@ function ReferralsPanel({store}){
 /* ─── LEADS PANEL (Pré-cadastros) ────────────────────────────────────────── */
 function LeadsPanel({store,setPage,setClientId}){
   const {data,addLead,editLead,delLead,convertLead,showToast}=store;
-  const [form,setForm]=useState({name:'',phone:'',reference:'',referralId:'',notes:'',lat:'',lng:''});
+  const [form,setForm]=useState({name:'',phone:'',reference:'',referralId:'',notes:'',lat:'',lng:'',mapsLink:''});
+  const [mapsInput,setMapsInput]=useState('');
+  const [mapsLoading,setMapsLoading]=useState(false);
   const [editId,setEditId]=useState(null);const [conf,setConf]=useState(null);const [showMap,setShowMap]=useState(false);
   const sf=(k,v)=>setForm(f=>({...f,[k]:v}));
-  const reset=()=>{setForm({name:'',phone:'',reference:'',referralId:'',notes:'',lat:'',lng:''});setEditId(null);};
-  const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}const ref=data.referrals.find(r=>r.id===form.referralId);const l={name:form.name,phone:form.phone,reference:form.reference,referralId:form.referralId||null,referralName:ref?.name||null,notes:form.notes,lat:+form.lat||0,lng:+form.lng||0};if(editId){editLead(editId,l);showToast('✅ Atualizado');}else{addLead(l);showToast('✅ Pré-cadastro criado!');}reset();};
-  const startEdit=l=>{setForm({name:l.name,phone:l.phone||'',reference:l.reference||'',referralId:l.referralId||'',notes:l.notes||'',lat:l.lat||'',lng:l.lng||''});setEditId(l.id);};
+  const reset=()=>{setForm({name:'',phone:'',reference:'',referralId:'',notes:'',lat:'',lng:'',mapsLink:''});setMapsInput('');setEditId(null);};
+  const parseMapsLink=async(url)=>{
+    if(!url)return;
+    setMapsLoading(true);
+    try{
+      // Try to extract coords from URL patterns
+      let lat='',lng='';
+      // Pattern: @lat,lng or ?q=lat,lng or /place/.../@lat,lng
+      const atMatch=url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+      const qMatch=url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+      const llMatch=url.match(/ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+      if(atMatch){lat=atMatch[1];lng=atMatch[2];}
+      else if(qMatch){lat=qMatch[1];lng=qMatch[2];}
+      else if(llMatch){lat=llMatch[1];lng=llMatch[2];}
+      else{
+        // Short URL (goo.gl/maps) — resolve via fetch
+        try{
+          const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+          const d=await r.json();
+          const m=d.contents?.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+            ||d.contents?.match(/center=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+          if(m){lat=m[1];lng=m[2];}
+        }catch{}
+      }
+      if(lat&&lng){
+        sf('lat',lat);sf('lng',lng);sf('mapsLink',url);
+        showToast(`📍 Localização extraída: ${(+lat).toFixed(4)}, ${(+lng).toFixed(4)}`);
+      }else{
+        showToast('⚠️ Não foi possível extrair coordenadas. Tente marcar pelo GPS.');
+      }
+    }catch{showToast('⚠️ Erro ao processar o link.');}
+    setMapsLoading(false);
+  };
+  const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}const ref=data.referrals.find(r=>r.id===form.referralId);const l={name:form.name,phone:form.phone,reference:form.reference,referralId:form.referralId||null,referralName:ref?.name||null,notes:form.notes,lat:+form.lat||0,lng:+form.lng||0,mapsLink:form.mapsLink||''};if(editId){editLead(editId,l);showToast('✅ Atualizado');}else{addLead(l);showToast('✅ Pré-cadastro criado!');}reset();};
+  const startEdit=l=>{setForm({name:l.name,phone:l.phone||'',reference:l.reference||'',referralId:l.referralId||'',notes:l.notes||'',lat:l.lat||'',lng:l.lng||'',mapsLink:l.mapsLink||''});setMapsInput(l.mapsLink||'');setEditId(l.id);};
   const doConvert=leadId=>{const newClientId=convertLead(leadId);if(newClientId){showToast('✅ Convertido para cliente!');setClientId(newClientId);setPage('clientDetail');}};
   const active=data.leads.filter(l=>l.status==='active');
   const converted=data.leads.filter(l=>l.status==='converted');
@@ -1362,9 +1664,19 @@ function LeadsPanel({store,setPage,setClientId}){
       <div className="field"><label>Ponto de Referência</label><input value={form.reference} onChange={e=>sf('reference',e.target.value)} placeholder="Ex: Próximo ao silo da comunidade"/></div>
       <div className="field"><label>Indicado por</label><select value={form.referralId} onChange={e=>sf('referralId',e.target.value)}><option value="">Nenhum indicador</option>{data.referrals.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
       <div className="field"><label>Observações</label><textarea value={form.notes} onChange={e=>sf('notes',e.target.value)} placeholder="Interesse, potencial, observações…" style={{minHeight:60}}/></div>
-      {/* GPS */}
-      <button onClick={()=>setShowMap(true)} style={{background:form.lat?'var(--primary)':'var(--pl)',color:form.lat?'#fff':'var(--pd)',border:'1.5px solid var(--primary)',borderRadius:10,padding:'10px 14px',display:'flex',alignItems:'center',gap:8,fontSize:14,fontWeight:700,width:'100%',justifyContent:'center',cursor:'pointer',marginBottom:8,minHeight:44}}>
-        <span style={{fontSize:18}}>🗺️</span>{form.lat?`📍 ${(+form.lat).toFixed(4)}, ${(+form.lng).toFixed(4)} — Alterar`:'Marcar localização GPS'}
+      {/* Link Google Maps */}
+      <div className="field"><label>📎 Colar link do Google Maps (WhatsApp)</label>
+        <div style={{display:'flex',gap:6}}>
+          <input value={mapsInput} onChange={e=>setMapsInput(e.target.value)} placeholder="https://maps.app.goo.gl/..." style={{flex:1,border:'1.5px solid var(--border)',borderRadius:9,padding:'10px 13px',background:'var(--card)',fontSize:15,color:'var(--text)'}}/>
+          <button onClick={()=>parseMapsLink(mapsInput)} disabled={!mapsInput||mapsLoading} style={{background:'var(--teal)',color:'#fff',border:'none',borderRadius:9,padding:'0 14px',fontWeight:700,fontSize:13,cursor:'pointer',flexShrink:0,minHeight:44}}>
+            {mapsLoading?'⏳':'📍 Extrair'}
+          </button>
+        </div>
+        {form.lat&&form.lng&&<div style={{fontSize:12,color:'var(--primary)',fontWeight:600,marginTop:4}}>✅ Localização: {(+form.lat).toFixed(5)}, {(+form.lng).toFixed(5)}</div>}
+      </div>
+      {/* GPS — só substitui se clicado */}
+      <button onClick={()=>setShowMap(true)} style={{background:'var(--pl)',color:'var(--pd)',border:'1.5px solid var(--primary)',borderRadius:10,padding:'10px 14px',display:'flex',alignItems:'center',gap:8,fontSize:14,fontWeight:700,width:'100%',justifyContent:'center',cursor:'pointer',marginBottom:8,minHeight:44}}>
+        <span style={{fontSize:18}}>🗺️</span>{'Marcar localização pelo GPS (substitui link)'}
       </button>
       <div className="cbar">{editId&&<button className="btn bg" style={{flex:1}} onClick={reset}>Cancelar</button>}<button className="btn bteal" style={{flex:editId?1:'100%'}} onClick={submit}>{editId?'💾 Salvar':'➕ Cadastrar Lead'}</button></div>
     </div>
@@ -1424,13 +1736,205 @@ function CommissionsPanel({store}){
         </div>
         {c.status==='paga'&&c.paidAt&&<div style={{fontSize:11,color:'var(--text3)'}}>Pago em: {fd(c.paidAt)}</div>}
         {c.status==='pendente'&&(
-          <button className="btn bp bs" style={{marginTop:8,width:'100%'}} onClick={()=>{payCommission(c.id);showToast('✅ Comissão marcada como paga!');}}>💰 Marcar como Paga (Baixa)</button>
+          <div style={{marginTop:8}}>
+            <PhotoUploader photoIds={c.receiptPhotoIds||[]} onChange={v=>store.updateCommissionReceipt(c.id,v)} label="📎 Comprovante de Pagamento" contextName="comprovante"/>
+            <button className="btn bp bs" style={{marginTop:6,width:'100%'}} onClick={()=>{payCommission(c.id);showToast('✅ Comissão marcada como paga!');}}>💰 Confirmar Pagamento</button>
+          </div>
+        )}
+        {c.status==='paga'&&c.receiptPhotoIds?.length>0&&(
+          <PhotoUploader photoIds={c.receiptPhotoIds} onChange={()=>{}} label="📎 Comprovante" contextName="comprovante"/>
         )}
       </div>
     ))}
     <div style={{fontSize:12,color:'var(--text3)',marginTop:10,padding:10,background:'var(--bg)',borderRadius:8}}>ℹ️ Comissões pagas são registradas como "baixa" mas nunca excluídas do histórico.</div>
   </div>);
 }
+
+/* ─── REP COMMISSIONS PAGE ───────────────────────────────────────────────── */
+function RepCommissionsPage({store}){
+  const {data,payRepCommission,updateRepCommissionReceipt,showToast}=store;
+  const [dateFrom,setDateFrom]=useState('');
+  const [dateTo,setDateTo]=useState('');
+  const [filterProduct,setFilterProduct]=useState('');
+  const [filterStatus,setFilterStatus]=useState('');
+  const [taxPct,setTaxPct]=useState(localStorage.getItem('rep_tax_pct')||'6');
+  const [tab,setTab]=useState('pending');
+
+  const saveTax=v=>{setTaxPct(v);localStorage.setItem('rep_tax_pct',v);};
+
+  const filtered=useMemo(()=>(data.repCommissions||[]).filter(c=>{
+    if(filterStatus&&c.status!==filterStatus)return false;
+    if(filterProduct&&c.productId!==filterProduct)return false;
+    if(dateFrom&&c.orderDate<dateFrom)return false;
+    if(dateTo&&c.orderDate>(dateTo+'T23:59:59'))return false;
+    return true;
+  }),[data.repCommissions,filterStatus,filterProduct,dateFrom,dateTo]);
+
+  const pending=filtered.filter(c=>c.status==='pendente');
+  const paid=filtered.filter(c=>c.status==='paga');
+
+  const totalBruto=filtered.reduce((a,c)=>a+c.amount,0);
+  const taxVal=totalBruto*(parseFloat(taxPct)||0)/100;
+  const totalLiq=totalBruto-taxVal;
+
+  // Group by month for monthly summary
+  const byMonth=useMemo(()=>{
+    const m={};
+    filtered.forEach(c=>{
+      const mo=c.orderDate?c.orderDate.slice(0,7):'?';
+      if(!m[mo])m[mo]={month:mo,bruto:0,count:0};
+      m[mo].bruto+=c.amount;m[mo].count++;
+    });
+    return Object.values(m).sort((a,b)=>b.month.localeCompare(a.month));
+  },[filtered]);
+
+  const printReport=()=>{
+    const rows=filtered.map(c=>`<tr>
+      <td>${fd(c.orderDate)}</td>
+      <td>${c.clientName}</td>
+      <td>${c.productName}</td>
+      <td style="text-align:center">${c.qty}</td>
+      <td>${fmtMoney(c.unitPrice)}</td>
+      <td style="text-align:center">${c.repCommissionPct}%</td>
+      <td>${fmtMoney(c.amount)}</td>
+      <td>${c.status==='paga'?'✅ Paga':'⏳ Pendente'}</td>
+    </tr>`).join('');
+    const tax=parseFloat(taxPct)||0;
+    const summary=`<table style="margin-top:16px;width:auto">
+      <tr><td style="padding:4px 12px 4px 0"><b>Total Bruto:</b></td><td>${fmtMoney(totalBruto)}</td></tr>
+      <tr><td><b>Impostos (${tax}%):</b></td><td style="color:#dc2626">(${fmtMoney(taxVal)})</td></tr>
+      <tr><td><b>Total Líquido:</b></td><td style="color:#166534;font-size:16px"><b>${fmtMoney(totalLiq)}</b></td></tr>
+    </table>`;
+    openPrint('Relatório de Comissões — Representante',
+      `<table><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Qtd</th><th>Vlr.Unit.</th><th>%Com</th><th>Comissão</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>${summary}`,
+      data.company,data.representative);
+  };
+
+  const list=tab==='pending'?pending:paid;
+
+  return(<>
+    <Hdr title="💰 Comissões do Representante"/>
+    <div className="content">
+
+      {/* Resumo */}
+      <div style={{background:'var(--pd)',color:'#fff',borderRadius:12,padding:14,marginBottom:14}}>
+        <div style={{fontSize:12,fontWeight:600,opacity:.8,marginBottom:8,textTransform:'uppercase',letterSpacing:'.05em'}}>Resumo do período filtrado</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+          <div style={{background:'rgba(255,255,255,.12)',borderRadius:8,padding:10,textAlign:'center'}}>
+            <div style={{fontSize:18,fontWeight:800}}>{fmtMoney(totalBruto)}</div>
+            <div style={{fontSize:10,opacity:.8}}>BRUTO</div>
+          </div>
+          <div style={{background:'rgba(255,255,255,.12)',borderRadius:8,padding:10,textAlign:'center'}}>
+            <div style={{fontSize:18,fontWeight:800,color:'#fca5a5'}}>({fmtMoney(taxVal)})</div>
+            <div style={{fontSize:10,opacity:.8}}>IMPOSTO {taxPct}%</div>
+          </div>
+          <div style={{background:'rgba(255,255,255,.18)',borderRadius:8,padding:10,textAlign:'center'}}>
+            <div style={{fontSize:18,fontWeight:800,color:'#86efac'}}>{fmtMoney(totalLiq)}</div>
+            <div style={{fontSize:10,opacity:.8}}>LÍQUIDO</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="sbox" style={{marginBottom:12}}>
+        <div className="sbox-title">🔎 Filtros</div>
+        <div className="row2">
+          <div className="field"><label>De</label><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></div>
+          <div className="field"><label>Até</label><input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}/></div>
+        </div>
+        <div className="row2">
+          <div className="field"><label>Produto</label>
+            <select value={filterProduct} onChange={e=>setFilterProduct(e.target.value)}>
+              <option value="">Todos</option>
+              {data.products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div className="field"><label>Status</label>
+            <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
+              <option value="">Todos</option>
+              <option value="pendente">⏳ Pendente</option>
+              <option value="paga">✅ Paga</option>
+            </select>
+          </div>
+        </div>
+        <div className="field" style={{marginBottom:0}}>
+          <label>% Impostos para NFS-e</label>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <input value={taxPct} onChange={e=>saveTax(e.target.value)} placeholder="Ex: 6" inputMode="decimal" style={{width:80,border:'1.5px solid var(--border)',borderRadius:9,padding:'8px 12px'}}/>
+            <span style={{fontSize:13,color:'var(--text2)'}}>% sobre o total bruto = {fmtMoney(taxVal)} de imposto</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Resumo por mês */}
+      {byMonth.length>0&&<div className="cc" style={{marginBottom:12}}>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>📅 Por mês</div>
+        {byMonth.map(m=>{
+          const tax2=m.bruto*(parseFloat(taxPct)||0)/100;
+          return(<div key={m.month} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+            <div>
+              <div style={{fontWeight:600,fontSize:13}}>{m.month}</div>
+              <div style={{fontSize:11,color:'var(--text3)'}}>{m.count} venda(s)</div>
+            </div>
+            <div style={{textAlign:'right'}}>
+              <div style={{fontSize:13,color:'var(--text2)'}}>Bruto: {fmtMoney(m.bruto)}</div>
+              <div style={{fontSize:13,fontWeight:700,color:'var(--primary)'}}>Líq: {fmtMoney(m.bruto-tax2)}</div>
+            </div>
+          </div>);
+        })}
+      </div>}
+
+      {/* Botão imprimir */}
+      <button className="btn bp" style={{width:'100%',marginBottom:14}} onClick={printReport}>
+        🖨️ Gerar Relatório / NFS-e
+      </button>
+
+      {/* Tabs pendente/pago */}
+      <div className="tabs">
+        <div className={`tab${tab==='pending'?' on':''}`} onClick={()=>setTab('pending')}>⏳ Pendentes ({pending.length})</div>
+        <div className={`tab${tab==='paid'?' on':''}`} onClick={()=>setTab('paid')}>✅ Pagas ({paid.length})</div>
+      </div>
+
+      {list.length===0&&<div className="empty"><div style={{fontSize:36}}>💰</div>
+        <div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>
+          {tab==='pending'?'Nenhuma comissão pendente':'Nenhuma comissão paga'}
+        </div>
+        <div style={{fontSize:12,color:'var(--text3)',marginTop:4}}>
+          Comissões são geradas automaticamente ao marcar um pedido como "Pago", conforme o % cadastrado em cada produto.
+        </div>
+      </div>}
+
+      {list.map(c=>(
+        <div key={c.id} className="comm-card" style={{borderLeft:`4px solid ${c.status==='paga'?'var(--primary)':'var(--accent)'}`}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:700,fontSize:14}}>{c.productName}</div>
+              <div style={{fontSize:12,color:'var(--text2)'}}>👤 {c.clientName}</div>
+              <div style={{fontSize:11,color:'var(--text3)'}}>{fd(c.orderDate)} · {c.qty}× {fmtMoney(c.unitPrice)} · {c.repCommissionPct}%</div>
+            </div>
+            <div style={{textAlign:'right',flexShrink:0,marginLeft:8}}>
+              <div style={{fontWeight:800,fontSize:16,color:'var(--primary)'}}>{fmtMoney(c.amount)}</div>
+              <span className={c.status==='paga'?'comm-paga':'comm-pendente'}>{c.status==='paga'?'✅ Paga':'⏳ Pendente'}</span>
+            </div>
+          </div>
+          {c.status==='paga'&&c.paidAt&&<div style={{fontSize:11,color:'var(--text3)',marginBottom:4}}>Pago em: {fd(c.paidAt)}</div>}
+          {c.status==='pendente'&&(
+            <div style={{marginTop:8}}>
+              <PhotoUploader photoIds={c.receiptPhotoIds||[]} onChange={v=>updateRepCommissionReceipt(c.id,v)} label="📎 Comprovante" contextName="comprovante_rep"/>
+              <button className="btn bp bs" style={{marginTop:6,width:'100%'}} onClick={()=>{payRepCommission(c.id);showToast('✅ Comissão marcada como paga!');}}>
+                💰 Confirmar Recebimento
+              </button>
+            </div>
+          )}
+          {c.status==='paga'&&(c.receiptPhotoIds||[]).length>0&&(
+            <PhotoUploader photoIds={c.receiptPhotoIds} onChange={()=>{}} label="📎 Comprovante" contextName="comprovante_rep"/>
+          )}
+        </div>
+      ))}
+    </div>
+  </>);
+}
+
 
 /* ─── APP ROOT ───────────────────────────────────────────────────────────── */
 function App(){
@@ -1454,6 +1958,7 @@ function App(){
       case 'orders':return<OrdersList store={store} setPage={go} setClientId={setClientId} setEditOrderId={setEditOrderId}/>;
       case 'orderForm':return<OrderForm store={store} setPage={go} editId={editOrderId} clearEdit={()=>setEditOrderId(null)}/>;
       case 'reports':return<ReportsPage store={store}/>;
+      case 'repcommissions':return<RepCommissionsPage store={store}/>;
       case 'empresa':return<EmpresaPage store={store} setPage={go} setClientId={setClientId}/>;
       default:return<Dashboard store={store} setPage={go} setClientId={setClientId}/>;
     }

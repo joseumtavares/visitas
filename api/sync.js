@@ -24,13 +24,11 @@ const { validateSyncKey, cors, sb, body, ok, err } = require('./_supabase');
 // ── helpers de conversão app ↔ banco ────────────────────────────────────────
 
 // camelCase das chaves do app → snake_case do banco
-// const toSnake = s => s.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`);
+const toSnake = s => s.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`);
 
-const workspace_name = 'visitas';
-// Change to use the original not sanitised string
 function sanitize(ws) {
-  return String(ws || workspace_name).trim()
-    .replace(/[^a-z0-9_-]/g, '').slice(0, 80) || workspace_name;
+  return String(ws || 'principal').trim().toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '').slice(0, 80) || 'principal';
 }
 
 // ── Leitura (GET) ────────────────────────────────────────────────────────────
@@ -42,7 +40,7 @@ async function readAll(ws) {
   const [
     categories, envTypes, productCategories, customStatusTypes,
     clients, environments, products, visits,
-    referrals, leads, orders, orderItems, commissions,
+    referrals, leads, orders, orderItems, commissions, repCommissions,
     companyRows, repRows,
   ] = await Promise.all([
     sb(`/rest/v1/categories?workspace=eq.${encodeURIComponent(ws)}&select=*`),
@@ -58,6 +56,7 @@ async function readAll(ws) {
     sb(`/rest/v1/orders?workspace=eq.${encodeURIComponent(ws)}&select=*`),
     sb(`/rest/v1/order_items?workspace=eq.${encodeURIComponent(ws)}&select=*`),
     sb(`/rest/v1/commissions?workspace=eq.${encodeURIComponent(ws)}&select=*`),
+    sb(`/rest/v1/rep_commissions?workspace=eq.${encodeURIComponent(ws)}&select=*`),
     sb(`/rest/v1/company_settings?workspace=eq.${encodeURIComponent(ws)}&select=*&limit=1`),
     sb(`/rest/v1/representative_settings?workspace=eq.${encodeURIComponent(ws)}&select=*&limit=1`),
   ]);
@@ -121,6 +120,17 @@ async function readAll(ws) {
       createdAt: l.created_at,
     })),
     orders: ordersWithItems,
+    repCommissions: (repCommissions || []).map(c => ({
+      id: c.id, orderId: c.order_id, orderDate: c.order_date,
+      clientId: c.client_id, clientName: c.client_name || '',
+      productId: c.product_id, productName: c.product_name || '',
+      qty: c.qty || 1, unitPrice: c.unit_price || 0,
+      repCommissionPct: c.rep_commission_pct || 0,
+      amount: c.amount || 0, orderTotal: c.order_total || 0,
+      status: c.status || 'pendente', paidAt: c.paid_at || null,
+      receiptPhotoIds: c.receipt_photo_ids || [],
+      createdAt: c.created_at,
+    })),
     commissions: (commissions || []).map(c => ({
       id: c.id, referralId: c.referral_id, referralName: c.referral_name || '',
       orderId: c.order_id, clientId: c.client_id, clientName: c.client_name || '',
@@ -212,7 +222,7 @@ async function writeAll(ws, payload) {
 
   // ── products ──────────────────────────────────────────────────────────────
   await upsertTable('products', (payload.products || []).map(p => ({
-    id: p.id, workspace: ws, name: p.name, model: p.model || '',
+    id: p.id, workspace: ws, name: p.name, model: p.model || '', rep_commission_pct: p.repCommissionPct || 0,
     category_id: p.categoryId || null, dimensions: p.dimensions || '',
     color: p.color || '', price: p.price || 0, notes: p.notes || '',
     photo_ids: p.photoIds || [], updated_at: now,
@@ -244,6 +254,7 @@ async function writeAll(ws, payload) {
     fin_status: o.finStatus || 'pendente',
     referral_id: o.referralId || null, referral_name: o.referralName || '',
     status: o.status, notes: o.notes || '', total: o.total || 0,
+    commission_type: o.commissionType || 'fixed', commission_value: o.commissionValue || 0, commission_pct: o.commissionPct || 0,
     updated_at: now,
   })));
 
@@ -269,6 +280,20 @@ async function writeAll(ws, payload) {
     }
   }
 
+  // ── rep_commissions ──────────────────────────────────────────────────────
+  await upsertTable('rep_commissions', (payload.repCommissions || []).map(c => ({
+    id: c.id, workspace: ws,
+    order_id: c.orderId || null, order_date: c.orderDate || null,
+    client_id: c.clientId || null, client_name: c.clientName || '',
+    product_id: c.productId || null, product_name: c.productName || '',
+    qty: c.qty || 1, unit_price: c.unitPrice || 0,
+    rep_commission_pct: c.repCommissionPct || 0,
+    amount: c.amount || 0, order_total: c.orderTotal || 0,
+    status: c.status || 'pendente', paid_at: c.paidAt || null,
+    receipt_photo_ids: c.receiptPhotoIds || [],
+    updated_at: now,
+  })));
+
   // ── commissions ───────────────────────────────────────────────────────────
   await upsertTable('commissions', (payload.commissions || []).map(c => ({
     id: c.id, workspace: ws,
@@ -276,7 +301,7 @@ async function writeAll(ws, payload) {
     order_id: c.orderId, client_id: c.clientId, client_name: c.clientName || '',
     amount: c.amount || 0, status: c.status,
     created_at: c.createdAt || now, paid_at: c.paidAt || null,
-    order_date: c.orderDate || null, order_total: c.orderTotal || 0,
+    order_date: c.orderDate || null, order_total: c.orderTotal || 0, receipt_photo_ids: c.receiptPhotoIds || [],
     updated_at: now,
   })));
 
