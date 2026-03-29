@@ -158,41 +158,48 @@ async function readAll(ws) {
 
 async function upsertTable(table, rows, conflictCol = 'id') {
   if (!rows || !rows.length) return;
-  await sb(`/rest/v1/${table}?on_conflict=${conflictCol}`, {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: rows,
-  });
+  // Supabase PostgREST tem limite de payload; enviar em lotes de 200 para segurança
+  const CHUNK = 200;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const chunk = rows.slice(i, i + CHUNK);
+    await sb(`/rest/v1/${table}?on_conflict=${conflictCol}`, {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: chunk,
+    });
+  }
 }
 
 async function writeAll(ws, payload) {
   const now = new Date().toISOString();
+  const errors = [];
+  const safe = async (label, fn) => { try { await fn(); } catch(e) { errors.push(`${label}: ${e.message}`); } };
 
   // ── lookup tables ──────────────────────────────────────────────────────────
-  await upsertTable('categories', (payload.categories || []).map(c => ({
+  await safe('categories', ()=>upsertTable('categories', (payload.categories || []).map(c => ({
     id: c.id, workspace: ws, name: c.name, description: c.desc || '', updated_at: now,
-  })));
+  }))));
 
-  await upsertTable('env_types', (payload.envTypes || []).map(e => ({
+  await safe('env_types', ()=>upsertTable('env_types', (payload.envTypes || []).map(e => ({
     id: e.id, workspace: ws, name: e.name, updated_at: now,
-  })));
+  }))));
 
-  await upsertTable('product_categories', (payload.productCategories || []).map(p => ({
+  await safe('product_categories', ()=>upsertTable('product_categories', (payload.productCategories || []).map(p => ({
     id: p.id, workspace: ws, name: p.name, updated_at: now,
-  })));
+  }))));
 
-  await upsertTable('custom_status_types', (payload.customStatusTypes || []).map(t => ({
+  await safe('custom_status_types', ()=>upsertTable('custom_status_types', (payload.customStatusTypes || []).map(t => ({
     id: t.id, workspace: ws, label: t.label, updated_at: now,
-  })));
+  }))));
 
   // ── referrals (needed before leads/orders/commissions) ────────────────────
-  await upsertTable('referrals', (payload.referrals || []).map(r => ({
+  await safe('referrals', ()=>upsertTable('referrals', (payload.referrals || []).map(r => ({
     id: r.id, workspace: ws, name: r.name, commission: r.commission || 0, updated_at: now,
-  })));
+  }))));
 
   // ── clients ───────────────────────────────────────────────────────────────
   const clients = payload.clients || [];
-  await upsertTable('clients', clients.map(c => ({
+  await safe('clients', ()=>upsertTable('clients', clients.map(c => ({
     id: c.id, workspace: ws,
     name: c.name, phone1: c.phone1, phone2: c.phone2 || '',
     category_id: c.categoryId || null,
@@ -201,7 +208,7 @@ async function writeAll(ws, payload) {
     maps_link: c.mapsLink || '', notes: c.notes || '',
     activity_status: c.activityStatus || {},
     updated_at: now,
-  })));
+  }))));
 
   // ── environments (nested inside clients) ──────────────────────────────────
   const allEnvs = clients.flatMap(c =>
@@ -219,25 +226,25 @@ async function writeAll(ws, payload) {
       updated_at: now,
     }))
   );
-  await upsertTable('environments', allEnvs);
+  await safe('environments', ()=>upsertTable('environments', allEnvs));
 
   // ── products ──────────────────────────────────────────────────────────────
-  await upsertTable('products', (payload.products || []).map(p => ({
+  await safe('products', ()=>upsertTable('products', (payload.products || []).map(p => ({
     id: p.id, workspace: ws, name: p.name, model: p.model || '', rep_commission_pct: p.repCommissionPct || 0,
     category_id: p.categoryId || null, dimensions: p.dimensions || '',
     color: p.color || '', price: p.price || 0, notes: p.notes || '',
     photo_ids: p.photoIds || [], updated_at: now,
-  })));
+  }))));
 
   // ── visits ────────────────────────────────────────────────────────────────
-  await upsertTable('visits', (payload.visits || []).map(v => ({
+  await safe('visits', ()=>upsertTable('visits', (payload.visits || []).map(v => ({
     id: v.id, workspace: ws, client_id: v.clientId,
     date: v.date, notes: v.notes || '',
     next_contact: v.nextContact || null, updated_at: now,
-  })));
+  }))));
 
   // ── leads ─────────────────────────────────────────────────────────────────
-  await upsertTable('leads', (payload.leads || []).map(l => ({
+  await safe('leads', ()=>upsertTable('leads', (payload.leads || []).map(l => ({
     id: l.id, workspace: ws, name: l.name, phone: l.phone || '',
     reference: l.reference || '', referral_id: l.referralId || null,
     referral_name: l.referralName || '', lat: l.lat || 0, lng: l.lng || 0,
@@ -245,11 +252,11 @@ async function writeAll(ws, payload) {
     status: l.status || 'active',
     converted_client_id: l.convertedClientId || null,
     created_at: l.createdAt || now, updated_at: now,
-  })));
+  }))));
 
   // ── orders ────────────────────────────────────────────────────────────────
   const orders = payload.orders || [];
-  await upsertTable('orders', orders.map(o => ({
+  await safe('orders', ()=>upsertTable('orders', orders.map(o => ({
     id: o.id, workspace: ws, client_id: o.clientId, env_id: o.envId || null,
     date: o.date, payment_type: o.paymentType,
     installments: parseInt(o.installments) || null,
@@ -258,7 +265,7 @@ async function writeAll(ws, payload) {
     status: o.status, notes: o.notes || '', total: o.total || 0,
     commission_type: o.commissionType || 'fixed', commission_value: o.commissionValue || 0, commission_pct: o.commissionPct || 0,
     updated_at: now,
-  })));
+  }))));
 
   // ── order_items ───────────────────────────────────────────────────────────
   const allItems = orders.flatMap(o =>
@@ -270,20 +277,22 @@ async function writeAll(ws, payload) {
     }))
   );
   // Para order_items usamos delete+insert pois não têm id estável no app
-  if (orders.length) {
-    const orderIds = orders.map(o => `"${o.id}"`).join(',');
-    await sb(`/rest/v1/order_items?order_id=in.(${orderIds})&workspace=eq.${encodeURIComponent(ws)}`, { method: 'DELETE' });
-    if (allItems.length) {
-      await sb('/rest/v1/order_items', {
-        method: 'POST',
-        headers: { Prefer: 'return=minimal' },
-        body: allItems,
-      });
+  await safe('order_items', async ()=>{
+    if (orders.length) {
+      const orderIds = orders.map(o => `"${o.id}"`).join(',');
+      await sb(`/rest/v1/order_items?order_id=in.(${orderIds})&workspace=eq.${encodeURIComponent(ws)}`, { method: 'DELETE' });
+      if (allItems.length) {
+        await sb('/rest/v1/order_items', {
+          method: 'POST',
+          headers: { Prefer: 'return=minimal' },
+          body: allItems,
+        });
+      }
     }
-  }
+  });
 
   // ── rep_commissions ──────────────────────────────────────────────────────
-  await upsertTable('rep_commissions', (payload.repCommissions || []).map(c => ({
+  await safe('rep_commissions', ()=>upsertTable('rep_commissions', (payload.repCommissions || []).map(c => ({
     id: c.id, workspace: ws,
     order_id: c.orderId || null, order_date: c.orderDate || null,
     client_id: c.clientId || null, client_name: c.clientName || '',
@@ -294,10 +303,10 @@ async function writeAll(ws, payload) {
     status: c.status || 'pendente', paid_at: c.paidAt || null,
     receipt_photo_ids: c.receiptPhotoIds || [],
     updated_at: now,
-  })));
+  }))));
 
   // ── commissions ───────────────────────────────────────────────────────────
-  await upsertTable('commissions', (payload.commissions || []).map(c => ({
+  await safe('commissions', ()=>upsertTable('commissions', (payload.commissions || []).map(c => ({
     id: c.id, workspace: ws,
     referral_id: c.referralId || null, referral_name: c.referralName || '',
     order_id: c.orderId, client_id: c.clientId, client_name: c.clientName || '',
@@ -305,11 +314,11 @@ async function writeAll(ws, payload) {
     created_at: c.createdAt || now, paid_at: c.paidAt || null,
     order_date: c.orderDate || null, order_total: c.orderTotal || 0, receipt_photo_ids: c.receiptPhotoIds || [],
     updated_at: now,
-  })));
+  }))));
 
   // ── company_settings ──────────────────────────────────────────────────────
   const co = payload.company || {};
-  await sb(`/rest/v1/company_settings?on_conflict=workspace`, {
+  await safe('company_settings', ()=>sb(`/rest/v1/company_settings?on_conflict=workspace`, {
     method: 'POST',
     headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: [{
@@ -321,15 +330,18 @@ async function writeAll(ws, payload) {
       instagram: co.instagram || '', x: co.x || '', linkedin: co.linkedin || '',
       updated_at: now,
     }],
-  });
+  }));
 
   // ── representative_settings ───────────────────────────────────────────────
   const rep = payload.representative || {};
-  await sb(`/rest/v1/representative_settings?on_conflict=workspace`, {
+  await safe('representative_settings', ()=>sb(`/rest/v1/representative_settings?on_conflict=workspace`, {
     method: 'POST',
     headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: [{ workspace: ws, name: rep.name || '', cities: rep.cities || [], updated_at: now }],
-  });
+  }));
+
+  // Retorna erros parciais para diagnóstico (não interrompe o fluxo)
+  return errors;
 }
 
 // ── Handler principal ────────────────────────────────────────────────────────
@@ -356,8 +368,8 @@ module.exports = async function handler(req, res) {
         res.status(400).end(JSON.stringify({ ok: false, error: 'Payload inválido' }));
         return;
       }
-      await writeAll(ws, b.payload);
-      ok(res, { workspace: ws, updatedAt: new Date().toISOString() });
+      const syncErrors = await writeAll(ws, b.payload);
+      ok(res, { workspace: ws, updatedAt: new Date().toISOString(), ...(syncErrors?.length ? { warnings: syncErrors } : {}) });
       return;
     }
 

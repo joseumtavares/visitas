@@ -275,7 +275,20 @@ async function saveAllPhotosToGallery(photoIds,prefix,onProgress){
 const SK='cv_v4';
 const uuid=()=>crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(36).slice(2)}`;
 function loadData(){try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}}
-function saveData(d){try{localStorage.setItem(SK,JSON.stringify(d));return true;}catch{return false;}}
+function saveData(d){
+  try{
+    const json=JSON.stringify(d);
+    localStorage.setItem(SK,json);
+    return true;
+  }catch(e){
+    // QuotaExceededError — tenta salvar sem _meta para liberar espaço
+    try{
+      const{_meta,...core}=d;
+      localStorage.setItem(SK,JSON.stringify(core));
+      return true;
+    }catch{return false;}
+  }
+}
 function markBackup(){localStorage.setItem('cv_last_backup',new Date().toISOString());localStorage.removeItem('cv_backup_snooze_until');}
 function getLastBackup(){return localStorage.getItem('cv_last_backup');}
 function snoozeBackupReminder(hours=3){localStorage.setItem('cv_backup_snooze_until',new Date(Date.now()+hours*60*60*1000).toISOString());}
@@ -443,8 +456,9 @@ function useStore(){
 
   useEffect(()=>{
     if(!cloudCfg.syncKey||cloudCfg.autoSync===false||!syncState.ready||!navigator.onLine)return;
+    // Debounce generoso (8s) para não sincronizar no meio de um preenchimento de formulário
     clearTimeout(cloudTimer.current);
-    cloudTimer.current=setTimeout(()=>{pushToCloud(dataRef.current,{silent:true});},1800);
+    cloudTimer.current=setTimeout(()=>{pushToCloud(dataRef.current,{silent:true});},8000);
     return()=>clearTimeout(cloudTimer.current);
   },[data,cloudCfg.syncKey,cloudCfg.autoSync,syncState.ready,pushToCloud]);
 
@@ -567,10 +581,10 @@ function useStore(){
   const editLead=(id,l)=>up(d=>({...d,leads:d.leads.map(x=>x.id===id?{...x,...l}:x)}));
   const delLead=id=>up(d=>({...d,leads:d.leads.filter(x=>x.id!==id)}));
   const convertLead=(leadId)=>{
-    let newClientId=null;
+    // Gera o ID ANTES de chamar up() para garantir que está disponível imediatamente
+    const newClientId=uuid();
     up(d=>{
       const lead=d.leads.find(l=>l.id===leadId);if(!lead)return d;
-      newClientId=uuid();
       const mapsUrl=lead.mapsLink||(lead.lat&&lead.lng?`https://maps.google.com/?q=${lead.lat},${lead.lng}`:'');const newClient={id:newClientId,name:lead.name,phone1:lead.phone,phone2:'',categoryId:'',city:'',neighborhood:'',address:lead.reference||'',lat:lead.lat||0,lng:lead.lng||0,mapsLink:mapsUrl,notes:`Convertido de pré-cadastro. Referência: ${lead.reference||''}. Indicado por: ${lead.referralName||d.referrals.find(r=>r.id===lead.referralId)?.name||'—'}`,environments:[],activityStatus:{hasEquip:false,bioPellets:false,cavaco:false,briquete:false,pellets:false,customFlags:{},custom:''}};
       return{...d,clients:[...d.clients,newClient],leads:d.leads.map(l=>l.id===leadId?{...l,status:'converted',convertedClientId:newClientId}:l)};
     });
@@ -1067,7 +1081,7 @@ function Dashboard({store,setPage,setClientId}){
         </div>
         <div className="shdr"><h3>Últimas Visitas</h3><button className="btn bo bs" onClick={()=>setPage('visits')}>Ver todas</button></div>
         {recent.length===0&&<div className="empty"><div style={{fontSize:36}}>📋</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhuma visita ainda</div></div>}
-        {recent.map(v=>{const cl=data.clients.find(c=>c.id===v.clientId);if(!cl)return null;return(<div key={v.id} className="vi" style={{cursor:'pointer'}} onClick={()=>{setClientId(cl.id);setPage('clientDetail')}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700}}>{cl.name}</span><span style={{fontSize:12,color:'var(--text3)'}}>{fd(v.date)}</span></div><div style={{fontSize:13,color:'var(--text2)'}}>{v.notes.slice(0,80)}{v.notes.length>80?'…':''}</div>{v.nextContact&&<div style={{fontSize:12,color:'var(--accent)',fontWeight:600,marginTop:4}}>🔔 {fd(v.nextContact+'T00:00')}</div>}</div>);})}
+        {recent.map(v=>{const cl=data.clients.find(c=>c.id===v.clientId);if(!cl)return null;return(<div key={v.id} className="vi" style={{cursor:'pointer'}} onClick={()=>setClientId(cl.id)}><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700}}>{cl.name}</span><span style={{fontSize:12,color:'var(--text3)'}}>{fd(v.date)}</span></div><div style={{fontSize:13,color:'var(--text2)'}}>{v.notes.slice(0,80)}{v.notes.length>80?'…':''}</div>{v.nextContact&&<div style={{fontSize:12,color:'var(--accent)',fontWeight:600,marginTop:4}}>🔔 {fd(v.nextContact+'T00:00')}</div>}</div>);})}
       </>)}
 
       {tab==='data'&&(<div>
@@ -1201,7 +1215,7 @@ function ProductsList({store,setPage,setEditProductId}){
       <input className="sb" placeholder="🔍 Nome ou modelo…" value={q} onChange={e=>setQ(e.target.value)}/>
       <select className="sb" value={cf} onChange={e=>setCf(e.target.value)}><option value="">Todas as categorias</option>{data.productCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
       {rows.length===0&&<div className="empty"><div style={{fontSize:36}}>📦</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum produto</div></div>}
-      {rows.map(p=>{const cat=data.productCategories.find(c=>c.id===p.categoryId);return(<div key={p.id} className="product-card"><div style={{display:'flex',gap:12,alignItems:'flex-start'}}>{(p.photoIds||[]).length>0&&<PhotoImg pid={p.photoIds[0]} style={{width:64,height:64,flexShrink:0,cursor:'pointer',borderRadius:9,border:'1px solid var(--border)'}} onClick={()=>PS.get(p.photoIds[0]).then(d=>d&&setLb(d))}/>}<div style={{flex:1,minWidth:0}}><div style={{fontWeight:800,fontSize:15,marginBottom:2}}>{p.name}</div>{p.model&&<div style={{fontSize:12,color:'var(--text3)',marginBottom:4}}>Modelo: {p.model}</div>}{cat&&<span className="tag" style={{background:'var(--purplel)',color:'var(--purple)',marginBottom:4}}>{cat.name}</span>}<div style={{fontSize:14,fontWeight:700,color:'var(--primary)',marginTop:4}}>{fmtMoney(p.price)}</div></div></div>{(p.dimensions||p.color)&&<div style={{fontSize:12,color:'var(--text2)',marginTop:6}}>{p.dimensions&&`📐 ${p.dimensions}`}{p.color&&` · 🎨 ${p.color}`}</div>}<div className="cac"><button className="btn bg bs" onClick={()=>{setEditProductId(p.id);setPage('productForm')}}>✏️</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(p.id)}>🗑️</button></div></div>);})}
+      {rows.map(p=>{const cat=data.productCategories.find(c=>c.id===p.categoryId);return(<div key={p.id} className="product-card"><div style={{display:'flex',gap:12,alignItems:'flex-start'}}>{(p.photoIds||[]).length>0&&<PhotoImg pid={p.photoIds[0]} style={{width:64,height:64,flexShrink:0,cursor:'pointer',borderRadius:9,border:'1px solid var(--border)'}} onClick={()=>PS.get(p.photoIds[0]).then(d=>d&&setLb(d))}/>}<div style={{flex:1,minWidth:0}}><div style={{fontWeight:800,fontSize:15,marginBottom:2}}>{p.name}</div>{p.model&&<div style={{fontSize:12,color:'var(--text3)',marginBottom:4}}>Modelo: {p.model}</div>}{cat&&<span className="tag" style={{background:'var(--purplel)',color:'var(--purple)',marginBottom:4}}>{cat.name}</span>}<div style={{fontSize:14,fontWeight:700,color:'var(--primary)',marginTop:4}}>{fmtMoney(p.price)}</div></div></div>{(p.dimensions||p.color)&&<div style={{fontSize:12,color:'var(--text2)',marginTop:6}}>{p.dimensions&&`📐 ${p.dimensions}`}{p.color&&` · 🎨 ${p.color}`}</div>}<div className="cac"><button className="btn bg bs" onClick={()=>setEditProductId(p.id)}>✏️</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(p.id)}>🗑️</button></div></div>);})}
     </div>
     {conf&&<Confirm msg="Excluir produto?" onOk={()=>{delProduct(conf);setConf(null);showToast('Removido');}} onCancel={()=>setConf(null)}/>}
     {lb&&<Lightbox src={lb} onClose={()=>setLb(null)}/>}
@@ -1243,7 +1257,7 @@ function OrdersList({store,setPage,setClientId,setEditOrderId}){
         const env=cl.environments.find(e=>e.id===o.envId);
         const ref=data.referrals.find(r=>r.id===o.referralId);
         return(<div key={o.id} className="order-card">
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}><div><div style={{fontWeight:800,fontSize:15,cursor:'pointer'}} onClick={()=>{setClientId(cl.id);setPage('clientDetail')}}>{cl.name}</div>{env&&<div style={{fontSize:12,color:'var(--text2)'}}>🏗️ {env.label}</div>}</div><span style={{fontSize:12,color:'var(--text3)'}}>{fd(o.date)}</span></div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}><div><div style={{fontWeight:800,fontSize:15,cursor:'pointer'}} onClick={()=>setClientId(cl.id)}>{cl.name}</div>{env&&<div style={{fontSize:12,color:'var(--text2)'}}>🏗️ {env.label}</div>}</div><span style={{fontSize:12,color:'var(--text3)'}}>{fd(o.date)}</span></div>
           <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:5}}>
             <span className={`tag ${PAY_CLASS[o.paymentType]||''}`}>{PAY_LABELS[o.paymentType]}</span>
             {o.status&&<span className={`tag ${ORDER_STATUS[o.status]||''}`}>{ORDER_STATUS_LABEL[o.status]}</span>}
@@ -1251,7 +1265,7 @@ function OrdersList({store,setPage,setClientId,setEditOrderId}){
           </div>
           <div style={{fontWeight:800,fontSize:16,color:'var(--primary)',marginBottom:8}}>{fmtMoney(o.total)}</div>
           <div className="cac">
-            <button className="btn bg bs" onClick={()=>{setEditOrderId(o.id);setPage('orderForm')}}>✏️</button>
+            <button className="btn bg bs" onClick={()=>setEditOrderId(o.id)}>✏️</button>
             <button className="btn bg bs" onClick={()=>{
               const items=(o.items||[]).map(it=>{const p=data.products.find(x=>x.id===it.productId);return`- ${it.productName||p?.name||'Produto'}: ${it.qty}× ${fmtMoney(it.unitPrice)} = ${fmtMoney(it.qty*it.unitPrice)}`;}).join('\n');
               cpText(`*Pedido — ${cl.name}*\nData: ${fd(o.date)}\nPagamento: ${PAY_LABELS[o.paymentType]}${o.installments?' ('+o.installments+'×)':''}\nStatus: ${ORDER_STATUS_LABEL[o.status]||'—'}\n\nProdutos:\n${items}\n\n*Total: ${fmtMoney(o.total)}*${o.notes?'\n\nObs: '+o.notes:''}`,()=>showToast('💬 Copiado!'));
@@ -1380,7 +1394,7 @@ function ClientsList({store,setPage,setClientId,setEditId}){
       <input className="sb" placeholder="🔍 Nome ou cidade…" value={q} onChange={e=>setQ(e.target.value)}/>
       <select className="sb" value={cf} onChange={e=>setCf(e.target.value)}><option value="">Todas as categorias</option>{data.categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
       {rows.length===0&&<div className="empty"><div style={{fontSize:36}}>👥</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum cliente</div></div>}
-      {rows.map(c=>{const cat=data.categories.find(x=>x.id===c.categoryId);const vlen=data.visits.filter(v=>v.clientId===c.id).length;const olen=data.orders.filter(o=>o.clientId===c.id).length;return(<div key={c.id} className="cc"><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:3}}><div className="cn">{c.name}</div>{cat&&<span className="tag" style={{background:'var(--pl)',color:'var(--pd)',marginLeft:6,flexShrink:0}}>{cat.name}</span>}</div><div className="cm">{c.city&&<span>📍 {c.city}</span>}<span>📞 {c.phone1}</span><span>🏗️ {c.environments.length}</span><span>📋 {vlen}</span><span>🛒 {olen}</span></div><div className="cac"><button className="btn bo bs" onClick={()=>{setClientId(c.id);setPage('clientDetail')}}>Ver</button>{(c.mapsLink||c.lat)&&<button className="btn bg bs" onClick={()=>window.open(c.mapsLink||gurl(c.lat,c.lng),'_blank')}>🗺️</button>}<button className="btn bg bs" onClick={()=>{setEditId(c.id);setPage('clientForm')}}>✏️</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(c.id)}>🗑️</button></div></div>);})}
+      {rows.map(c=>{const cat=data.categories.find(x=>x.id===c.categoryId);const vlen=data.visits.filter(v=>v.clientId===c.id).length;const olen=data.orders.filter(o=>o.clientId===c.id).length;return(<div key={c.id} className="cc"><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:3}}><div className="cn">{c.name}</div>{cat&&<span className="tag" style={{background:'var(--pl)',color:'var(--pd)',marginLeft:6,flexShrink:0}}>{cat.name}</span>}</div><div className="cm">{c.city&&<span>📍 {c.city}</span>}<span>📞 {c.phone1}</span><span>🏗️ {c.environments.length}</span><span>📋 {vlen}</span><span>🛒 {olen}</span></div><div className="cac"><button className="btn bo bs" onClick={()=>setClientId(c.id)}>Ver</button>{(c.mapsLink||c.lat)&&<button className="btn bg bs" onClick={()=>window.open(c.mapsLink||gurl(c.lat,c.lng),'_blank')}>🗺️</button>}<button className="btn bg bs" onClick={()=>setEditId(c.id)}>✏️</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(c.id)}>🗑️</button></div></div>);})}
     </div>
     {conf&&<Confirm msg="Excluir cliente?" onOk={()=>{delClient(conf);setConf(null);showToast('Removido');}} onCancel={()=>setConf(null)}/>}
   </>);
@@ -1514,7 +1528,7 @@ function ClientDetail({store,clientId,setPage,setEditId,setEditOrderId}){
   const orders=data.orders.filter(o=>o.clientId===clientId);
   const st=client.activityStatus||{};
   const doConf=()=>{if(conf.type==='env'){delEnv(clientId,conf.eid);showToast('Ambiente removido');}else{delVisit(conf.vid);showToast('Visita removida');}setConf(null);};
-  return(<><Hdr title={client.name} onBack={()=>setPage('clients')} right={<button className="hbtn" onClick={()=>{setEditId(clientId);setPage('clientForm')}}>✏️</button>}/>
+  return(<><Hdr title={client.name} onBack={()=>setPage('clients')} right={<button className="hbtn" onClick={()=>setEditId(clientId)}>✏️</button>}/>
     <div className="content">
       {cat&&<span className="chip" style={{marginBottom:8,display:'inline-flex'}}>{cat.name}</span>}
       <div style={{fontSize:14,color:'var(--text2)',marginBottom:2}}>📞 {client.phone1}{client.phone2?' | '+client.phone2:''}</div>
@@ -1523,11 +1537,11 @@ function ClientDetail({store,clientId,setPage,setEditId,setEditOrderId}){
       {tab==='info'&&(<div>{(client.lat||client.mapsLink)&&<LocCard lat={client.lat} lng={client.lng} mapsLink={client.mapsLink} showToast={showToast}/>}<div className="stitle">Dados</div>{[['Nome',client.name],['Telefone 1',client.phone1],client.phone2&&['Telefone 2',client.phone2],['Cidade',client.city||'—'],['Bairro',client.neighborhood||'—'],['Endereço',client.address||'—'],client.lat&&['GPS',`${(+client.lat).toFixed(6)}, ${(+client.lng).toFixed(6)}`]].filter(Boolean).map(([l,v])=><div key={l} className="dr"><span className="dl">{l}</span><span className="dv">{v}</span></div>)}{client.notes&&<div style={{marginTop:11,padding:11,background:'var(--pl)',borderRadius:10,fontSize:14,color:'var(--text2)'}}>{client.notes}</div>}<button className="btn bp" style={{width:'100%',marginTop:14}} onClick={()=>setShowVisit(true)}>📋 Registrar Visita</button></div>)}
       {tab==='envs'&&(<div><div className="shdr"><h3>Ambientes ({client.environments.length})</h3><button className="btn bp bs" onClick={()=>{setEditEnvData(null);setShowEnv(true);}}>+ Ambiente</button></div>{client.environments.length===0&&<div className="empty"><div style={{fontSize:36}}>🏗️</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum ambiente</div></div>}{client.environments.map(env=><EnvCard key={env.id} env={env} envTypes={data.envTypes} showToast={showToast} onEdit={()=>{setEditEnvData(env);setShowEnv(true);}} onDelete={()=>setConf({type:'env',eid:env.id})}/>)}</div>)}
       {tab==='visits'&&(<div><div className="shdr"><h3>Visitas ({visits.length})</h3><button className="btn bp bs" onClick={()=>setShowVisit(true)}>+ Visita</button></div>{visits.length===0&&<div className="empty"><div style={{fontSize:36}}>📋</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhuma visita</div></div>}{visits.map(v=><div key={v.id} className="vi"><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700}}>{fd(v.date)}</span><span style={{fontSize:12,color:'var(--text3)'}}>{ft(v.date)}</span></div><div style={{fontSize:13,color:'var(--text2)',marginBottom:7}}>{v.notes}</div>{v.nextContact&&<div style={{fontSize:12,color:'var(--accent)',fontWeight:600,marginBottom:7}}>🔔 Próx: {fd(v.nextContact+'T00:00')}</div>}<div style={{display:'flex',gap:5,flexWrap:'wrap'}}><button className="btn bo bs" onClick={()=>window.open(calUrl(client,v),'_blank')}>📅 Agendar</button>{(client.mapsLink||client.lat)&&<button className="btn bg bs" onClick={()=>window.open(client.mapsLink||gurl(client.lat,client.lng),'_blank')}>🗺️</button>}<button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf({type:'visit',vid:v.id})}>🗑️</button></div></div>)}</div>)}
-      {tab==='orders'&&(<div><div className="shdr"><h3>Pedidos ({orders.length})</h3><button className="btn bpurple bs" onClick={()=>setPage('orderForm')}>+ Pedido</button></div>{orders.length===0&&<div className="empty"><div style={{fontSize:36}}>🛒</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum pedido</div></div>}{orders.map(o=>{const env=client.environments.find(e=>e.id===o.envId);return(<div key={o.id} className="order-card"><div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><div style={{display:'flex',gap:6,flexWrap:'wrap'}}><span className={`tag ${PAY_CLASS[o.paymentType]||''}`}>{PAY_LABELS[o.paymentType]}</span>{o.status&&<span className={`tag ${ORDER_STATUS[o.status]||''}`}>{ORDER_STATUS_LABEL[o.status]}</span>}</div><span style={{fontSize:12,color:'var(--text3)'}}>{fd(o.date)}</span></div>{env&&<div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>🏗️ {env.label}</div>}<div style={{fontWeight:800,fontSize:16,color:'var(--primary)',marginBottom:6}}>{fmtMoney(o.total)}</div><button className="btn bg bs" onClick={()=>{setEditOrderId(o.id);setPage('orderForm');}}>✏️ Ver/Editar</button></div>);})}</div>)}
+      {tab==='orders'&&(<div><div className="shdr"><h3>Pedidos ({orders.length})</h3><button className="btn bpurple bs" onClick={()=>setPage('orderForm')}>+ Pedido</button></div>{orders.length===0&&<div className="empty"><div style={{fontSize:36}}>🛒</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum pedido</div></div>}{orders.map(o=>{const env=client.environments.find(e=>e.id===o.envId);return(<div key={o.id} className="order-card"><div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><div style={{display:'flex',gap:6,flexWrap:'wrap'}}><span className={`tag ${PAY_CLASS[o.paymentType]||''}`}>{PAY_LABELS[o.paymentType]}</span>{o.status&&<span className={`tag ${ORDER_STATUS[o.status]||''}`}>{ORDER_STATUS_LABEL[o.status]}</span>}</div><span style={{fontSize:12,color:'var(--text3)'}}>{fd(o.date)}</span></div>{env&&<div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>🏗️ {env.label}</div>}<div style={{fontWeight:800,fontSize:16,color:'var(--primary)',marginBottom:6}}>{fmtMoney(o.total)}</div><button className="btn bg bs" onClick={()=>setEditOrderId(o.id)}>✏️ Ver/Editar</button></div>);})}</div>)}
       {tab==='status'&&(<div><div className="stitle">Status de Atividade</div><StatusManagerInline store={store}/>{[['hasEquip','Já possui equipamento'],['bioPellets','Interesse — Bio Pellets'],['cavaco','Interesse — Cavaco'],['briquete','Interesse — Briquete'],['pellets','Interesse — Pellets']].map(([k,l])=><div key={k} className="schk" onClick={()=>updateStatus(clientId,{[k]:!st[k]})}><div className={`box${st[k]?' on':''}`}>{st[k]?'✓':''}</div><span style={{fontSize:14}}>{l}</span></div>)}{data.customStatusTypes.map(t=>{const checked=!!(st.customFlags?.[t.id]);return(<div key={t.id} className="schk" onClick={()=>updateStatus(clientId,{customFlags:{...st.customFlags,[t.id]:!checked}})}><div className={`box${checked?' on':''}`}>{checked?'✓':''}</div><span style={{fontSize:14}}>{t.label}</span></div>);})} <div className="field" style={{marginTop:13}}><label>Outros</label><textarea value={st.custom||''} onChange={e=>updateStatus(clientId,{custom:e.target.value})} placeholder="Informações adicionais…"/></div></div>)}
     </div>
     {conf&&<Confirm msg={conf.type==='env'?'Excluir ambiente?':'Excluir visita?'} onOk={doConf} onCancel={()=>setConf(null)}/>}
-    {showEnv&&<EnvModal store={{...store,addEnv,editEnv}} clientId={clientId} editEnvData={editEnvData} onClose={()=>{setShowEnv(false);setEditEnvData(null);}}/>}
+    {showEnv&&<EnvModal key={editEnvData?.id||'new-env'} store={{...store,addEnv,editEnv}} clientId={clientId} editEnvData={editEnvData} onClose={()=>{setShowEnv(false);setEditEnvData(null);}}/>}
     {showVisit&&<VisitModal store={store} clientId={clientId} onClose={()=>setShowVisit(false)}/>}
   </>);
 }
@@ -1547,7 +1561,7 @@ function VisitsList({store,setPage,setClientId}){
     <div className="content">
       <input className="sb" placeholder="🔍 Buscar…" value={q} onChange={e=>setQ(e.target.value)}/>
       {rows.length===0&&<div className="empty"><div style={{fontSize:36}}>📋</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhuma visita</div></div>}
-      {rows.map(v=>{const cl=data.clients.find(c=>c.id===v.clientId);if(!cl)return null;const cat=data.categories.find(c=>c.id===cl.categoryId);return(<div key={v.id} className="vi"><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700,cursor:'pointer'}} onClick={()=>{setClientId(cl.id);setPage('clientDetail');}}>{cl.name}</span><div style={{fontSize:12,color:'var(--text3)',textAlign:'right'}}><div>{fd(v.date)}</div><div>{ft(v.date)}</div></div></div>{cat&&<span className="tag" style={{background:'var(--pl)',color:'var(--pd)',marginBottom:4,fontSize:11}}>{cat.name}</span>}<div style={{fontSize:13,color:'var(--text2)',marginBottom:7}}>{v.notes}</div>{v.nextContact&&<div style={{fontSize:12,color:'var(--accent)',fontWeight:600,marginBottom:7}}>🔔 Próx: {fd(v.nextContact+'T00:00')}</div>}<div style={{display:'flex',gap:5,flexWrap:'wrap'}}><button className="btn bo bs" onClick={()=>window.open(calUrl(cl,v),'_blank')}>📅</button>{(cl.mapsLink||cl.lat)&&<button className="btn bg bs" onClick={()=>window.open(cl.mapsLink||gurl(cl.lat,cl.lng),'_blank')}>🗺️</button>}<button className="btn bg bs" onClick={()=>{setClientId(cl.id);setPage('clientDetail');}}>Ver</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(v.id)}>🗑️</button></div></div>);})}
+      {rows.map(v=>{const cl=data.clients.find(c=>c.id===v.clientId);if(!cl)return null;const cat=data.categories.find(c=>c.id===cl.categoryId);return(<div key={v.id} className="vi"><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700,cursor:'pointer'}} onClick={()=>setClientId(cl.id)}>{cl.name}</span><div style={{fontSize:12,color:'var(--text3)',textAlign:'right'}}><div>{fd(v.date)}</div><div>{ft(v.date)}</div></div></div>{cat&&<span className="tag" style={{background:'var(--pl)',color:'var(--pd)',marginBottom:4,fontSize:11}}>{cat.name}</span>}<div style={{fontSize:13,color:'var(--text2)',marginBottom:7}}>{v.notes}</div>{v.nextContact&&<div style={{fontSize:12,color:'var(--accent)',fontWeight:600,marginBottom:7}}>🔔 Próx: {fd(v.nextContact+'T00:00')}</div>}<div style={{display:'flex',gap:5,flexWrap:'wrap'}}><button className="btn bo bs" onClick={()=>window.open(calUrl(cl,v),'_blank')}>📅</button>{(cl.mapsLink||cl.lat)&&<button className="btn bg bs" onClick={()=>window.open(cl.mapsLink||gurl(cl.lat,cl.lng),'_blank')}>🗺️</button>}<button className="btn bg bs" onClick={()=>setClientId(cl.id)}>Ver</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(v.id)}>🗑️</button></div></div>);})}
     </div>
     {conf&&<Confirm msg="Excluir visita?" onOk={()=>{delVisit(conf);setConf(null);showToast('Removida');}} onCancel={()=>setConf(null)}/>}
   </>);
@@ -1694,7 +1708,7 @@ function LeadsPanel({store,setPage,setClientId}){
   };
   const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}const ref=data.referrals.find(r=>r.id===form.referralId);const l={name:form.name,phone:form.phone,reference:form.reference,referralId:form.referralId||null,referralName:ref?.name||null,notes:form.notes,lat:+form.lat||0,lng:+form.lng||0,mapsLink:form.mapsLink||''};if(editId){editLead(editId,l);showToast('✅ Atualizado');}else{addLead(l);showToast('✅ Pré-cadastro criado!');}reset();};
   const startEdit=l=>{setForm({name:l.name,phone:l.phone||'',reference:l.reference||'',referralId:l.referralId||'',notes:l.notes||'',lat:l.lat||'',lng:l.lng||'',mapsLink:l.mapsLink||''});setMapsInput(l.mapsLink||'');setEditId(l.id);};
-  const doConvert=leadId=>{const newClientId=convertLead(leadId);if(newClientId){showToast('✅ Convertido para cliente!');setClientId(newClientId);setPage('clientDetail');}};
+  const doConvert=leadId=>{const newClientId=convertLead(leadId);if(newClientId){showToast('✅ Convertido para cliente!');setClientId(newClientId);}};
   const active=data.leads.filter(l=>l.status==='active');
   const converted=data.leads.filter(l=>l.status==='converted');
   return(<div>
@@ -1986,18 +2000,25 @@ function App(){
   const [editProductId,setEditProductId]=useState(null);
   const [editOrderId,setEditOrderId]=useState(null);
   useEffect(()=>{try{const url=new URL(window.location.href);if(page==='home')url.searchParams.delete('page');else url.searchParams.set('page',page);window.history.replaceState({},'',url);}catch{}},[page]);
+  // go() — navegação simples sem editId
   const go=p=>{setPage(p);if(!['clientForm','clientDetail','productForm','orderForm','empresa'].includes(p)){setEditId(null);setEditProductId(null);setEditOrderId(null);}};
+  // goEdit helpers — garantem que editId e page mudam no mesmo ciclo React,
+  // evitando o formulário montar com editId=null e capturar ex=null no useState
+  const goEditClient=(id)=>{setEditId(id);setPage('clientForm');};
+  const goEditProduct=(id)=>{setEditProductId(id);setPage('productForm');};
+  const goEditOrder=(id)=>{setEditOrderId(id);setPage('orderForm');};
+  const goClient=(id)=>{setClientId(id);setPage('clientDetail');};
   const render=()=>{
     switch(page){
-      case 'home':return<Dashboard store={store} setPage={go} setClientId={setClientId}/>;
-      case 'clients':return<ClientsList store={store} setPage={go} setClientId={setClientId} setEditId={setEditId}/>;
-      case 'clientForm':return<ClientForm store={store} setPage={go} editId={editId} clearEdit={()=>setEditId(null)}/>;
-      case 'clientDetail':return<ClientDetail store={store} clientId={clientId} setPage={go} setEditId={setEditId} setEditOrderId={setEditOrderId}/>;
-      case 'visits':return<VisitsList store={store} setPage={go} setClientId={setClientId}/>;
-      case 'products':return<ProductsList store={store} setPage={go} setEditProductId={setEditProductId}/>;
-      case 'productForm':return<ProductForm store={store} setPage={go} editId={editProductId} clearEdit={()=>setEditProductId(null)}/>;
-      case 'orders':return<OrdersList store={store} setPage={go} setClientId={setClientId} setEditOrderId={setEditOrderId}/>;
-      case 'orderForm':return<OrderForm store={store} setPage={go} editId={editOrderId} clearEdit={()=>setEditOrderId(null)}/>;
+      case 'home':return<Dashboard store={store} setPage={go} setClientId={goClient}/>;
+      case 'clients':return<ClientsList store={store} setPage={go} setClientId={goClient} setEditId={id=>{setEditId(id);setPage('clientForm');}}/>;
+      case 'clientForm':return<ClientForm key={editId||'new-client'} store={store} setPage={go} editId={editId} clearEdit={()=>setEditId(null)}/>;
+      case 'clientDetail':return<ClientDetail key={clientId} store={store} clientId={clientId} setPage={go} setEditId={id=>{setEditId(id);setPage('clientForm');}} setEditOrderId={id=>{setEditOrderId(id);setPage('orderForm');}}/>;
+      case 'visits':return<VisitsList store={store} setPage={go} setClientId={goClient}/>;
+      case 'products':return<ProductsList store={store} setPage={go} setEditProductId={id=>{setEditProductId(id);setPage('productForm');}}/>;
+      case 'productForm':return<ProductForm key={editProductId||'new-product'} store={store} setPage={go} editId={editProductId} clearEdit={()=>setEditProductId(null)}/>;
+      case 'orders':return<OrdersList store={store} setPage={go} setClientId={goClient} setEditOrderId={id=>{setEditOrderId(id);setPage('orderForm');}}/>;
+      case 'orderForm':return<OrderForm key={editOrderId||'new-order'} store={store} setPage={go} editId={editOrderId} clearEdit={()=>setEditOrderId(null)}/>;
       case 'reports':return<ReportsPage store={store}/>;
       case 'repcommissions':return<RepCommissionsPage store={store}/>;
       case 'empresa':return<EmpresaPage store={store} setPage={go} setClientId={setClientId}/>;
