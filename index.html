@@ -517,39 +517,41 @@ function useStore(){
   const addOrder=o=>up(d=>({...d,orders:[{...o,id:uuid(),date:new Date().toISOString()},...d.orders]}));
   const editOrder=(id,o)=>up(d=>{
     const old=d.orders.find(x=>x.id===id);
-    const newOrders=d.orders.map(x=>x.id===id?{...x,...o}:x);
+    // Sempre preservar items do pedido anterior se não forem enviados
+    const mergedO={...o,items:o.items??old?.items??[]};
+    const newOrders=d.orders.map(x=>x.id===id?{...x,...mergedO}:x);
     let newComm=[...d.commissions];
     // auto-commission when paid with a referral
-    if(o.status==='pago'&&old?.status!=='pago'&&o.referralId){
-      const ref=d.referrals.find(r=>r.id===o.referralId);
-      const cl=d.clients.find(c=>c.id===o.clientId);
+    if(mergedO.status==='pago'&&old?.status!=='pago'&&mergedO.referralId){
+      const ref=d.referrals.find(r=>r.id===mergedO.referralId);
+      const cl=d.clients.find(c=>c.id===mergedO.clientId);
       const already=d.commissions.find(c=>c.orderId===id);
       if(!already&&ref){
         // Calcular valor da comissão: fixo ou percentual
-        const commType=o.commissionType||ref.commissionType||'fixed';
+        const commType=mergedO.commissionType||ref.commissionType||'fixed';
         let amount=0;
         if(commType==='percent'){
-          const pct=parseFloat(o.commissionPct||ref.commissionPct||0);
-          amount=Math.round((o.total||0)*(pct/100)*100)/100;
+          const pct=parseFloat(mergedO.commissionPct||ref.commissionPct||0);
+          amount=Math.round((mergedO.total||0)*(pct/100)*100)/100;
         }else{
-          amount=parseFloat(o.commissionValue||ref.commission||0);
+          amount=parseFloat(mergedO.commissionValue||ref.commission||0);
         }
         newComm=[{
-          id:uuid(),referralId:o.referralId,referralName:ref.name,
-          orderId:id,clientId:o.clientId,clientName:cl?.name||'—',
+          id:uuid(),referralId:mergedO.referralId,referralName:ref.name,
+          orderId:id,clientId:mergedO.clientId,clientName:cl?.name||'—',
           amount,commissionType:commType,status:'pendente',
           receiptPhotoIds:[],
           createdAt:new Date().toISOString(),paidAt:null,
-          orderDate:old?.date,orderTotal:o.total
+          orderDate:old?.date,orderTotal:mergedO.total
         },...newComm];
       }
     }
     // ── Comissão do Representante (por produto) ──────────────────
     let newRepComm=[...d.repCommissions];
-    if(o.status==='pago'&&old?.status!=='pago'){
+    if(mergedO.status==='pago'&&old?.status!=='pago'){
       const alreadyRep=d.repCommissions.find(c=>c.orderId===id);
       if(!alreadyRep){
-        (o.items||[]).forEach(item=>{
+        (mergedO.items||[]).forEach(item=>{
           const prod=d.products.find(p=>p.id===item.productId);
           const pct=parseFloat(prod?.repCommissionPct||0);
           if(pct>0){
@@ -557,11 +559,11 @@ function useStore(){
             newRepComm=[{
               id:uuid(),orderId:id,
               orderDate:old?.date||new Date().toISOString(),
-              clientId:o.clientId,clientName:d.clients.find(c=>c.id===o.clientId)?.name||'—',
+              clientId:mergedO.clientId,clientName:d.clients.find(c=>c.id===mergedO.clientId)?.name||'—',
               productId:item.productId,productName:item.productName||prod?.name||'—',
               qty:item.qty||1,unitPrice:item.unitPrice||0,
               repCommissionPct:pct,amount,
-              orderTotal:o.total,status:'pendente',paidAt:null,receiptPhotoIds:[],
+              orderTotal:mergedO.total,status:'pendente',paidAt:null,receiptPhotoIds:[],
             },...newRepComm];
           }
         });
@@ -569,7 +571,7 @@ function useStore(){
     }
     return{...d,orders:newOrders,commissions:newComm,repCommissions:newRepComm};
   });
-  const delOrder=id=>up(d=>({...d,orders:d.orders.filter(x=>x.id!==id),commissions:d.commissions.filter(c=>c.orderId!==id)}));
+  const delOrder=id=>up(d=>({...d,orders:d.orders.filter(x=>x.id!==id),commissions:d.commissions.filter(c=>c.orderId!==id),repCommissions:(d.repCommissions||[]).filter(c=>c.orderId!==id)}));
 
   // referrals
   const addReferral=r=>up(d=>({...d,referrals:[{...r,id:uuid()},...d.referrals]}));
@@ -1264,6 +1266,14 @@ function OrdersList({store,setPage,setClientId,setEditOrderId}){
             {ref&&<span className="tag" style={{background:'var(--teall)',color:'var(--teal)'}}>🤝 {ref.name}</span>}
           </div>
           <div style={{fontWeight:800,fontSize:16,color:'var(--primary)',marginBottom:8}}>{fmtMoney(o.total)}</div>
+          {o.status!=='pago'&&<div style={{marginBottom:8}}>
+            <select value={o.status} onChange={e=>store.editOrder(o.id,{...o,status:e.target.value})}
+              style={{width:'100%',border:'1.5px solid var(--border)',borderRadius:9,padding:'8px 12px',fontSize:14,background:'var(--card)',color:'var(--text)',fontWeight:600}}>
+              <option value="pendente">⏳ Pendente</option>
+              <option value="pago">✅ Marcar como Pago</option>
+              <option value="cancelado">❌ Cancelado</option>
+            </select>
+          </div>}
           <div className="cac">
             <button className="btn bg bs" onClick={()=>setEditOrderId(o.id)}>✏️</button>
             <button className="btn bg bs" onClick={()=>{
@@ -1299,7 +1309,7 @@ function OrderForm({store,setPage,editId,clearEdit}){
   const envs=client?.environments||[];
   const total=items.reduce((a,it)=>a+it.qty*it.unitPrice,0);
   const addItem=()=>{if(!selProd){showToast('⚠️ Selecione um produto');return;}const prod=data.products.find(p=>p.id===selProd);if(!prod)return;const ex2=items.find(it=>it.productId===selProd);if(ex2){setItems(items.map(it=>it.productId===selProd?{...it,qty:it.qty+(+selQty||1),productName:it.productName||prod.name||'',productModel:it.productModel||prod.model||''}:it));}else{setItems([...items,{productId:selProd,productName:prod.name||'',productModel:prod.model||'',qty:+selQty||1,unitPrice:prod.price||0}]);}setSelProd('');setSelQty('1');setAddingProd(false);};
-  const submit=()=>{if(!clientId){showToast('⚠️ Cliente obrigatório');return;}if(items.length===0){showToast('⚠️ Adicione produtos');return;}const ref=data.referrals.find(r=>r.id===referralId);const normalizedItems=items.map(it=>{const prod=data.products.find(p=>p.id===it.productId);return{...it,productName:it.productName||prod?.name||'',productModel:it.productModel||prod?.model||''};});const o={clientId,envId:envId||null,paymentType,installments:+installments||null,finStatus:paymentType==='financiamento'?finStatus:null,referralId:referralId||null,referralName:ref?.name||null,status:orderStatus,notes,items:normalizedItems,total};if(editId)editOrder(editId,o);else addOrder(o);showToast(editId?'✅ Atualizado':'✅ Pedido registrado');clearEdit();setPage('orders');};
+  const submit=()=>{if(!clientId){showToast('⚠️ Cliente obrigatório');return;}if(items.length===0){showToast('⚠️ Adicione produtos');return;}const ref=data.referrals.find(r=>r.id===referralId);const normalizedItems=items.map(it=>{const prod=data.products.find(p=>p.id===it.productId);return{...it,productName:it.productName||prod?.name||'',productModel:it.productModel||prod?.model||''};});const o={clientId,envId:envId||null,paymentType,installments:+installments||null,finStatus:paymentType==='financiamento'?finStatus:null,referralId:referralId||null,referralName:ref?.name||null,status:orderStatus,notes,items:normalizedItems,total,commissionType:commissionType||'fixed',commissionValue:parseFloat((commissionValue+'').replace(',','.'))||0,commissionPct:parseFloat((commissionPct+'').replace(',','.'))||0};if(editId)editOrder(editId,o);else addOrder(o);showToast(editId?'✅ Atualizado':'✅ Pedido registrado');clearEdit();setPage('orders');};
   const printOrder=()=>{
     const cl=data.clients.find(c=>c.id===clientId);
     const env=cl?.environments.find(e=>e.id===envId);
@@ -1424,38 +1434,12 @@ function ClientForm({store,setPage,editId,clearEdit}){
   };
   const [showMap,setShowMap]=useState(false);
   const [mapsInput,setMapsInput]=useState(ex?.mapsLink||'');
-  const [mapsLoading,setMapsLoading]=useState(false);
   const s=(k,v)=>setForm(f=>({...f,[k]:v}));
-  const parseMapsLink=async(url)=>{
-    if(!url)return;
-    setMapsLoading(true);
-    try{
-      let lat='',lng='';
-      const atMatch=url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-      const qMatch=url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-      const llMatch=url.match(/ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-      if(atMatch){lat=atMatch[1];lng=atMatch[2];}
-      else if(qMatch){lat=qMatch[1];lng=qMatch[2];}
-      else if(llMatch){lat=llMatch[1];lng=llMatch[2];}
-      else{
-        try{
-          const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-          const d=await r.json();
-          const m=d.contents?.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
-            ||d.contents?.match(/center=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-          if(m){lat=m[1];lng=m[2];}
-        }catch{}
-      }
-      if(lat&&lng){
-        s('lat',lat);s('lng',lng);s('mapsLink',url);
-        showToast(`📍 Localização extraída: ${(+lat).toFixed(4)}, ${(+lng).toFixed(4)}`);
-      }else{
-        // Salva o link mesmo sem coordenadas extraídas
-        s('mapsLink',url);
-        showToast('🔗 Link salvo! Coordenadas não extraídas — use o mapa GPS se precisar.');
-      }
-    }catch{showToast('⚠️ Erro ao processar o link.');}
-    setMapsLoading(false);
+    // Apenas salva o link — sem tentar extrair coordenadas
+  const saveMapsLink=(url)=>{
+    if(!url.trim())return;
+    sf('mapsLink',url.trim());
+    showToast('🔗 Link salvo! Use o GPS para registrar coordenadas.');
   };
   const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}if(!form.phone1){showToast('⚠️ Telefone obrigatório');return;}if(!form.categoryId){showToast('⚠️ Categoria obrigatória');return;}const p={...form,lat:+form.lat||0,lng:+form.lng||0};if(editId)editClient(editId,p);else addClient(p);showToast(editId?'✅ Atualizado':'✅ Cadastrado');clearEdit();setPage('clients');};
   return(<><Hdr title={editId?'Editar Cliente':'Novo Cliente'} onBack={()=>{clearEdit();setPage('clients')}}/>
@@ -1470,10 +1454,9 @@ function ClientForm({store,setPage,editId,clearEdit}){
       <div className="field"><label>📎 Colar link do Google Maps</label>
         <div style={{display:'flex',gap:6}}>
           <input value={mapsInput} onChange={e=>setMapsInput(e.target.value)} placeholder="https://maps.app.goo.gl/..." style={{flex:1,border:'1.5px solid var(--border)',borderRadius:9,padding:'10px 13px',background:'var(--card)',fontSize:15,color:'var(--text)'}}/>
-          <button onClick={()=>parseMapsLink(mapsInput)} disabled={!mapsInput||mapsLoading} style={{background:'var(--teal)',color:'#fff',border:'none',borderRadius:9,padding:'0 14px',fontWeight:700,fontSize:13,cursor:'pointer',flexShrink:0,minHeight:44}}>{mapsLoading?'⏳':'📍 Salvar'}</button>
+          <button onClick={()=>saveMapsLink(mapsInput)} disabled={!mapsInput} style={{background:'var(--teal)',color:'#fff',border:'none',borderRadius:9,padding:'0 14px',fontWeight:700,fontSize:13,cursor:'pointer',flexShrink:0,minHeight:44}}>🔗 Salvar link</button>
         </div>
-        {form.mapsLink&&!form.lat&&<div style={{fontSize:11,color:'var(--teal)',fontWeight:600,marginTop:4}}>🔗 Link salvo (sem GPS)</div>}
-        {form.mapsLink&&form.lat&&<div style={{fontSize:11,color:'var(--primary)',fontWeight:600,marginTop:4}}>✅ GPS: {(+form.lat).toFixed(5)}, {(+form.lng).toFixed(5)}</div>}
+        {form.mapsLink&&<div style={{fontSize:11,color:'var(--teal)',fontWeight:600,marginTop:4}}>✅ Link salvo — o representante pode abrir direto no celular</div>}
       </div>
       <button onClick={()=>setShowMap(true)} style={{background:form.lat?'var(--primary)':'var(--pl)',color:form.lat?'#fff':'var(--pd)',border:'1.5px solid var(--primary)',borderRadius:12,padding:'13px 16px',display:'flex',alignItems:'center',gap:10,fontSize:15,fontWeight:700,width:'100%',justifyContent:'center',cursor:'pointer',marginBottom:13,minHeight:52}}><span style={{fontSize:24}}>🗺️</span>{form.lat?'Alterar localização pelo GPS':'Marcar localização pelo GPS'}</button>
       {form.lat&&form.lng&&<LocCard lat={form.lat} lng={form.lng} mapsLink={form.mapsLink} showToast={showToast} onEdit={()=>setShowMap(true)}/>}
@@ -1537,7 +1520,15 @@ function ClientDetail({store,clientId,setPage,setEditId,setEditOrderId}){
       {tab==='info'&&(<div>{(client.lat||client.mapsLink)&&<LocCard lat={client.lat} lng={client.lng} mapsLink={client.mapsLink} showToast={showToast}/>}<div className="stitle">Dados</div>{[['Nome',client.name],['Telefone 1',client.phone1],client.phone2&&['Telefone 2',client.phone2],['Cidade',client.city||'—'],['Bairro',client.neighborhood||'—'],['Endereço',client.address||'—'],client.lat&&['GPS',`${(+client.lat).toFixed(6)}, ${(+client.lng).toFixed(6)}`]].filter(Boolean).map(([l,v])=><div key={l} className="dr"><span className="dl">{l}</span><span className="dv">{v}</span></div>)}{client.notes&&<div style={{marginTop:11,padding:11,background:'var(--pl)',borderRadius:10,fontSize:14,color:'var(--text2)'}}>{client.notes}</div>}<button className="btn bp" style={{width:'100%',marginTop:14}} onClick={()=>setShowVisit(true)}>📋 Registrar Visita</button></div>)}
       {tab==='envs'&&(<div><div className="shdr"><h3>Ambientes ({client.environments.length})</h3><button className="btn bp bs" onClick={()=>{setEditEnvData(null);setShowEnv(true);}}>+ Ambiente</button></div>{client.environments.length===0&&<div className="empty"><div style={{fontSize:36}}>🏗️</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum ambiente</div></div>}{client.environments.map(env=><EnvCard key={env.id} env={env} envTypes={data.envTypes} showToast={showToast} onEdit={()=>{setEditEnvData(env);setShowEnv(true);}} onDelete={()=>setConf({type:'env',eid:env.id})}/>)}</div>)}
       {tab==='visits'&&(<div><div className="shdr"><h3>Visitas ({visits.length})</h3><button className="btn bp bs" onClick={()=>setShowVisit(true)}>+ Visita</button></div>{visits.length===0&&<div className="empty"><div style={{fontSize:36}}>📋</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhuma visita</div></div>}{visits.map(v=><div key={v.id} className="vi"><div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}><span style={{fontWeight:700}}>{fd(v.date)}</span><span style={{fontSize:12,color:'var(--text3)'}}>{ft(v.date)}</span></div><div style={{fontSize:13,color:'var(--text2)',marginBottom:7}}>{v.notes}</div>{v.nextContact&&<div style={{fontSize:12,color:'var(--accent)',fontWeight:600,marginBottom:7}}>🔔 Próx: {fd(v.nextContact+'T00:00')}</div>}<div style={{display:'flex',gap:5,flexWrap:'wrap'}}><button className="btn bo bs" onClick={()=>window.open(calUrl(client,v),'_blank')}>📅 Agendar</button>{(client.mapsLink||client.lat)&&<button className="btn bg bs" onClick={()=>window.open(client.mapsLink||gurl(client.lat,client.lng),'_blank')}>🗺️</button>}<button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf({type:'visit',vid:v.id})}>🗑️</button></div></div>)}</div>)}
-      {tab==='orders'&&(<div><div className="shdr"><h3>Pedidos ({orders.length})</h3><button className="btn bpurple bs" onClick={()=>setPage('orderForm')}>+ Pedido</button></div>{orders.length===0&&<div className="empty"><div style={{fontSize:36}}>🛒</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum pedido</div></div>}{orders.map(o=>{const env=client.environments.find(e=>e.id===o.envId);return(<div key={o.id} className="order-card"><div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><div style={{display:'flex',gap:6,flexWrap:'wrap'}}><span className={`tag ${PAY_CLASS[o.paymentType]||''}`}>{PAY_LABELS[o.paymentType]}</span>{o.status&&<span className={`tag ${ORDER_STATUS[o.status]||''}`}>{ORDER_STATUS_LABEL[o.status]}</span>}</div><span style={{fontSize:12,color:'var(--text3)'}}>{fd(o.date)}</span></div>{env&&<div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>🏗️ {env.label}</div>}<div style={{fontWeight:800,fontSize:16,color:'var(--primary)',marginBottom:6}}>{fmtMoney(o.total)}</div><button className="btn bg bs" onClick={()=>setEditOrderId(o.id)}>✏️ Ver/Editar</button></div>);})}</div>)}
+      {tab==='orders'&&(<div><div className="shdr"><h3>Pedidos ({orders.length})</h3><button className="btn bpurple bs" onClick={()=>setPage('orderForm')}>+ Pedido</button></div>{orders.length===0&&<div className="empty"><div style={{fontSize:36}}>🛒</div><div style={{fontWeight:600,color:'var(--text2)',marginTop:8}}>Nenhum pedido</div></div>}{orders.map(o=>{const env=client.environments.find(e=>e.id===o.envId);return(<div key={o.id} className="order-card"><div style={{display:'flex',justifyContent:'space-between',marginBottom:5}}><div style={{display:'flex',gap:6,flexWrap:'wrap'}}><span className={`tag ${PAY_CLASS[o.paymentType]||''}`}>{PAY_LABELS[o.paymentType]}</span>{o.status&&<span className={`tag ${ORDER_STATUS[o.status]||''}`}>{ORDER_STATUS_LABEL[o.status]}</span>}</div><span style={{fontSize:12,color:'var(--text3)'}}>{fd(o.date)}</span></div>{env&&<div style={{fontSize:12,color:'var(--text2)',marginBottom:4}}>🏗️ {env.label}</div>}<div style={{fontWeight:800,fontSize:16,color:'var(--primary)',marginBottom:6}}>{fmtMoney(o.total)}</div><div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+              {o.status!=='pago'&&<select value={o.status} onChange={e=>store.editOrder(o.id,{...o,status:e.target.value})} style={{flex:1,border:'1.5px solid var(--border)',borderRadius:8,padding:'6px 10px',fontSize:13,background:'var(--card)',fontWeight:600}}>
+                <option value="pendente">⏳ Pendente</option>
+                <option value="pago">✅ Marcar Pago</option>
+                <option value="cancelado">❌ Cancelado</option>
+              </select>}
+              {o.status==='pago'&&<span className="tag status-pago" style={{flex:1,textAlign:'center',padding:'7px'}}>✅ Pago</span>}
+              <button className="btn bg bs" onClick={()=>setEditOrderId(o.id)}>✏️</button>
+            </div></div>);})}</div>)}
       {tab==='status'&&(<div><div className="stitle">Status de Atividade</div><StatusManagerInline store={store}/>{[['hasEquip','Já possui equipamento'],['bioPellets','Interesse — Bio Pellets'],['cavaco','Interesse — Cavaco'],['briquete','Interesse — Briquete'],['pellets','Interesse — Pellets']].map(([k,l])=><div key={k} className="schk" onClick={()=>updateStatus(clientId,{[k]:!st[k]})}><div className={`box${st[k]?' on':''}`}>{st[k]?'✓':''}</div><span style={{fontSize:14}}>{l}</span></div>)}{data.customStatusTypes.map(t=>{const checked=!!(st.customFlags?.[t.id]);return(<div key={t.id} className="schk" onClick={()=>updateStatus(clientId,{customFlags:{...st.customFlags,[t.id]:!checked}})}><div className={`box${checked?' on':''}`}>{checked?'✓':''}</div><span style={{fontSize:14}}>{t.label}</span></div>);})} <div className="field" style={{marginTop:13}}><label>Outros</label><textarea value={st.custom||''} onChange={e=>updateStatus(clientId,{custom:e.target.value})} placeholder="Informações adicionais…"/></div></div>)}
     </div>
     {conf&&<Confirm msg={conf.type==='env'?'Excluir ambiente?':'Excluir visita?'} onOk={doConf} onCancel={()=>setConf(null)}/>}
@@ -1651,7 +1642,7 @@ function ReferralsPanel({store}){
       const comms=getComms(r.id);const pend=totalPend(r.id);const exp=expId===r.id;
       return(<div key={r.id} className="cc">
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-          <div><div style={{fontWeight:800,fontSize:15}}>{r.name}</div><div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>{r.phone&&`📞 ${r.phone}`}{r.cpf?` · CPF: ${r.cpf}`:''}</div><div style={{fontSize:13,color:'var(--primary)',fontWeight:700,marginTop:4}}>Comissão/venda: {fmtMoney(r.commission||0)}</div><div style={{fontSize:12,color:'var(--text2)'}}>Pedidos: {comms.length} · Pendente: {fmtMoney(pend)}</div></div>
+          <div><div style={{fontWeight:800,fontSize:15}}>{r.name}</div><div style={{fontSize:12,color:'var(--text2)',marginTop:2}}>{r.phone&&`📞 ${r.phone}`}{r.cpf?` · CPF: ${r.cpf}`:''}</div><div style={{fontSize:13,color:'var(--primary)',fontWeight:700,marginTop:4}}>Comissão/venda: {r.commissionType==='percent'?`${r.commissionPct||0}%`:fmtMoney(r.commission||0)}</div><div style={{fontSize:12,color:'var(--text2)'}}>Pedidos: {comms.length} · Pendente: {fmtMoney(pend)}</div></div>
           <div style={{display:'flex',gap:5,flexShrink:0}}><button className="btn bg bs" style={{padding:'4px 9px'}} onClick={()=>setExpId(exp?null:r.id)}>{exp?'▲':'▼'}</button><button className="btn bg bs" onClick={()=>startEdit(r)}>✏️</button><button className="btn bg bs" style={{color:'var(--danger)'}} onClick={()=>setConf(r.id)}>🗑️</button></div>
         </div>
         {exp&&(<div style={{marginTop:10,borderTop:'1px solid var(--border)',paddingTop:10}}>
@@ -1670,41 +1661,14 @@ function LeadsPanel({store,setPage,setClientId}){
   const {data,addLead,editLead,delLead,convertLead,showToast}=store;
   const [form,setForm]=useState({name:'',phone:'',reference:'',referralId:'',notes:'',lat:'',lng:'',mapsLink:''});
   const [mapsInput,setMapsInput]=useState('');
-  const [mapsLoading,setMapsLoading]=useState(false);
+
   const [editId,setEditId]=useState(null);const [conf,setConf]=useState(null);const [showMap,setShowMap]=useState(false);
   const sf=(k,v)=>setForm(f=>({...f,[k]:v}));
   const reset=()=>{setForm({name:'',phone:'',reference:'',referralId:'',notes:'',lat:'',lng:'',mapsLink:''});setMapsInput('');setEditId(null);};
-  const parseMapsLink=async(url)=>{
-    if(!url)return;
-    setMapsLoading(true);
-    try{
-      // Try to extract coords from URL patterns
-      let lat='',lng='';
-      // Pattern: @lat,lng or ?q=lat,lng or /place/.../@lat,lng
-      const atMatch=url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-      const qMatch=url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-      const llMatch=url.match(/ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-      if(atMatch){lat=atMatch[1];lng=atMatch[2];}
-      else if(qMatch){lat=qMatch[1];lng=qMatch[2];}
-      else if(llMatch){lat=llMatch[1];lng=llMatch[2];}
-      else{
-        // Short URL (goo.gl/maps) — resolve via fetch
-        try{
-          const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-          const d=await r.json();
-          const m=d.contents?.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
-            ||d.contents?.match(/center=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-          if(m){lat=m[1];lng=m[2];}
-        }catch{}
-      }
-      if(lat&&lng){
-        sf('lat',lat);sf('lng',lng);sf('mapsLink',url);
-        showToast(`📍 Localização extraída: ${(+lat).toFixed(4)}, ${(+lng).toFixed(4)}`);
-      }else{
-        showToast('⚠️ Não foi possível extrair coordenadas. Tente marcar pelo GPS.');
-      }
-    }catch{showToast('⚠️ Erro ao processar o link.');}
-    setMapsLoading(false);
+  const saveMapsLink=(url)=>{
+    if(!url.trim())return;
+    sf('mapsLink',url.trim());
+    showToast('✅ Link salvo! Use o GPS ao visitar o cliente.');
   };
   const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}const ref=data.referrals.find(r=>r.id===form.referralId);const l={name:form.name,phone:form.phone,reference:form.reference,referralId:form.referralId||null,referralName:ref?.name||null,notes:form.notes,lat:+form.lat||0,lng:+form.lng||0,mapsLink:form.mapsLink||''};if(editId){editLead(editId,l);showToast('✅ Atualizado');}else{addLead(l);showToast('✅ Pré-cadastro criado!');}reset();};
   const startEdit=l=>{setForm({name:l.name,phone:l.phone||'',reference:l.reference||'',referralId:l.referralId||'',notes:l.notes||'',lat:l.lat||'',lng:l.lng||'',mapsLink:l.mapsLink||''});setMapsInput(l.mapsLink||'');setEditId(l.id);};
@@ -1720,18 +1684,17 @@ function LeadsPanel({store,setPage,setClientId}){
       <div className="field"><label>Indicado por</label><select value={form.referralId} onChange={e=>sf('referralId',e.target.value)}><option value="">Nenhum indicador</option>{data.referrals.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
       <div className="field"><label>Observações</label><textarea value={form.notes} onChange={e=>sf('notes',e.target.value)} placeholder="Interesse, potencial, observações…" style={{minHeight:60}}/></div>
       {/* Link Google Maps */}
-      <div className="field"><label>📎 Colar link do Google Maps (WhatsApp)</label>
+      <div className="field"><label>📎 Link do Google Maps (recebido pelo WhatsApp)</label>
         <div style={{display:'flex',gap:6}}>
           <input value={mapsInput} onChange={e=>setMapsInput(e.target.value)} placeholder="https://maps.app.goo.gl/..." style={{flex:1,border:'1.5px solid var(--border)',borderRadius:9,padding:'10px 13px',background:'var(--card)',fontSize:15,color:'var(--text)'}}/>
-          <button onClick={()=>parseMapsLink(mapsInput)} disabled={!mapsInput||mapsLoading} style={{background:'var(--teal)',color:'#fff',border:'none',borderRadius:9,padding:'0 14px',fontWeight:700,fontSize:13,cursor:'pointer',flexShrink:0,minHeight:44}}>
-            {mapsLoading?'⏳':'📍 Extrair'}
-          </button>
+          <button onClick={()=>saveMapsLink(mapsInput)} disabled={!mapsInput} style={{background:'var(--teal)',color:'#fff',border:'none',borderRadius:9,padding:'0 14px',fontWeight:700,fontSize:13,cursor:'pointer',flexShrink:0,minHeight:44}}>🔗 Salvar link</button>
         </div>
-        {form.lat&&form.lng&&<div style={{fontSize:12,color:'var(--primary)',fontWeight:600,marginTop:4}}>✅ Localização: {(+form.lat).toFixed(5)}, {(+form.lng).toFixed(5)}</div>}
+        {form.mapsLink&&<div style={{fontSize:11,color:'var(--teal)',fontWeight:600,marginTop:4}}>🔗 Link salvo</div>}
+        {form.lat&&form.lng&&<div style={{fontSize:12,color:'var(--primary)',fontWeight:600,marginTop:2}}>✅ GPS: {(+form.lat).toFixed(5)}, {(+form.lng).toFixed(5)}</div>}
       </div>
       {/* GPS — só substitui se clicado */}
       <button onClick={()=>setShowMap(true)} style={{background:'var(--pl)',color:'var(--pd)',border:'1.5px solid var(--primary)',borderRadius:10,padding:'10px 14px',display:'flex',alignItems:'center',gap:8,fontSize:14,fontWeight:700,width:'100%',justifyContent:'center',cursor:'pointer',marginBottom:8,minHeight:44}}>
-        <span style={{fontSize:18}}>🗺️</span>{'Marcar localização pelo GPS (substitui link)'}
+        <span style={{fontSize:18}}>🗺️</span>{'🗺️ Marcar coordenadas GPS (ao visitar o cliente)'}
       </button>
       <div className="cbar">{editId&&<button className="btn bg" style={{flex:1}} onClick={reset}>Cancelar</button>}<button className="btn bteal" style={{flex:editId?1:'100%'}} onClick={submit}>{editId?'💾 Salvar':'➕ Cadastrar Lead'}</button></div>
     </div>
@@ -1745,10 +1708,12 @@ function LeadsPanel({store,setPage,setClientId}){
         {l.reference&&<div style={{fontSize:13,color:'var(--text2)',marginBottom:4}}>📍 {l.reference}</div>}
         {(l.referralName||ref?.name)&&<div style={{fontSize:12,color:'var(--teal)',fontWeight:600,marginBottom:4}}>🤝 Indicado por: {l.referralName||ref?.name}</div>}
         {l.notes&&<div style={{fontSize:12,color:'var(--text3)',marginBottom:8,fontStyle:'italic'}}>{l.notes}</div>}
+        {l.mapsLink&&!l.lat&&<div style={{fontSize:11,color:'var(--teal)',marginBottom:8}}>🔗 Link de localização salvo</div>}
         {l.lat&&l.lng&&<div style={{fontSize:11,color:'var(--text3)',marginBottom:8,fontFamily:'monospace'}}>GPS: {(+l.lat).toFixed(5)}, {(+l.lng).toFixed(5)}</div>}
         <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
           <button className="btn bp bs" onClick={()=>doConvert(l.id)}>✅ Converter para Cliente</button>
-          {l.lat&&l.lng&&<button className="btn bg bs" onClick={()=>window.open(gurl(l.lat,l.lng),'_blank')}>🗺️</button>}
+          {l.mapsLink&&<button className="btn bg bs" onClick={()=>window.open(l.mapsLink,'_blank')}>🗺️ Abrir</button>}
+          {!l.mapsLink&&l.lat&&l.lng&&<button className="btn bg bs" onClick={()=>window.open(gurl(l.lat,l.lng),'_blank')}>🗺️</button>}
         </div>
       </div>);
     })}

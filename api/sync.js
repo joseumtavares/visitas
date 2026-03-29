@@ -194,7 +194,7 @@ async function writeAll(ws, payload) {
 
   // ── referrals (needed before leads/orders/commissions) ────────────────────
   await safe('referrals', ()=>upsertTable('referrals', (payload.referrals || []).map(r => ({
-    id: r.id, workspace: ws, name: r.name, commission: r.commission || 0, updated_at: now,
+    id: r.id, workspace: ws, name: r.name, commission: r.commission || 0, commission_type: r.commissionType || 'fixed', commission_pct: r.commissionPct || 0, cpf: r.cpf || '', phone: r.phone || '', bank_name: r.bankName || '', bank_agency: r.bankAgency || '', bank_account: r.bankAccount || '', bank_pix: r.bankPix || '', updated_at: now,
   }))));
 
   // ── clients ───────────────────────────────────────────────────────────────
@@ -205,7 +205,7 @@ async function writeAll(ws, payload) {
     category_id: c.categoryId || null,
     city: c.city || '', neighborhood: c.neighborhood || '',
     address: c.address || '', lat: c.lat || 0, lng: c.lng || 0,
-    maps_link: c.mapsLink || '', notes: c.notes || '',
+    maps_link: c.mapsLink || '', notes: c.notes || '', cep: c.cep || '',
     activity_status: c.activityStatus || {},
     updated_at: now,
   }))));
