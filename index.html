@@ -1409,7 +1409,40 @@ function ClientForm({store,setPage,editId,clearEdit}){
     setCepLoading(false);
   };
   const [showMap,setShowMap]=useState(false);
+  const [mapsInput,setMapsInput]=useState(ex?.mapsLink||'');
+  const [mapsLoading,setMapsLoading]=useState(false);
   const s=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const parseMapsLink=async(url)=>{
+    if(!url)return;
+    setMapsLoading(true);
+    try{
+      let lat='',lng='';
+      const atMatch=url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+      const qMatch=url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+      const llMatch=url.match(/ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+      if(atMatch){lat=atMatch[1];lng=atMatch[2];}
+      else if(qMatch){lat=qMatch[1];lng=qMatch[2];}
+      else if(llMatch){lat=llMatch[1];lng=llMatch[2];}
+      else{
+        try{
+          const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+          const d=await r.json();
+          const m=d.contents?.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+            ||d.contents?.match(/center=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+          if(m){lat=m[1];lng=m[2];}
+        }catch{}
+      }
+      if(lat&&lng){
+        s('lat',lat);s('lng',lng);s('mapsLink',url);
+        showToast(`📍 Localização extraída: ${(+lat).toFixed(4)}, ${(+lng).toFixed(4)}`);
+      }else{
+        // Salva o link mesmo sem coordenadas extraídas
+        s('mapsLink',url);
+        showToast('🔗 Link salvo! Coordenadas não extraídas — use o mapa GPS se precisar.');
+      }
+    }catch{showToast('⚠️ Erro ao processar o link.');}
+    setMapsLoading(false);
+  };
   const submit=()=>{if(!form.name){showToast('⚠️ Nome obrigatório');return;}if(!form.phone1){showToast('⚠️ Telefone obrigatório');return;}if(!form.categoryId){showToast('⚠️ Categoria obrigatória');return;}const p={...form,lat:+form.lat||0,lng:+form.lng||0};if(editId)editClient(editId,p);else addClient(p);showToast(editId?'✅ Atualizado':'✅ Cadastrado');clearEdit();setPage('clients');};
   return(<><Hdr title={editId?'Editar Cliente':'Novo Cliente'} onBack={()=>{clearEdit();setPage('clients')}}/>
     <div className="content">
@@ -1420,7 +1453,15 @@ function ClientForm({store,setPage,editId,clearEdit}){
       <div className="field"><label>Observações</label><textarea value={form.notes} onChange={e=>s('notes',e.target.value)} placeholder="Anotações gerais…"/></div>
       <div className="divr"/>
       <div className="stitle">Localização</div>
-      <button onClick={()=>setShowMap(true)} style={{background:form.lat?'var(--primary)':'var(--pl)',color:form.lat?'#fff':'var(--pd)',border:'1.5px solid var(--primary)',borderRadius:12,padding:'13px 16px',display:'flex',alignItems:'center',gap:10,fontSize:15,fontWeight:700,width:'100%',justifyContent:'center',cursor:'pointer',marginBottom:13,minHeight:52}}><span style={{fontSize:24}}>🗺️</span>{form.lat?'Alterar localização':'Abrir mapa e marcar localização'}</button>
+      <div className="field"><label>📎 Colar link do Google Maps</label>
+        <div style={{display:'flex',gap:6}}>
+          <input value={mapsInput} onChange={e=>setMapsInput(e.target.value)} placeholder="https://maps.app.goo.gl/..." style={{flex:1,border:'1.5px solid var(--border)',borderRadius:9,padding:'10px 13px',background:'var(--card)',fontSize:15,color:'var(--text)'}}/>
+          <button onClick={()=>parseMapsLink(mapsInput)} disabled={!mapsInput||mapsLoading} style={{background:'var(--teal)',color:'#fff',border:'none',borderRadius:9,padding:'0 14px',fontWeight:700,fontSize:13,cursor:'pointer',flexShrink:0,minHeight:44}}>{mapsLoading?'⏳':'📍 Salvar'}</button>
+        </div>
+        {form.mapsLink&&!form.lat&&<div style={{fontSize:11,color:'var(--teal)',fontWeight:600,marginTop:4}}>🔗 Link salvo (sem GPS)</div>}
+        {form.mapsLink&&form.lat&&<div style={{fontSize:11,color:'var(--primary)',fontWeight:600,marginTop:4}}>✅ GPS: {(+form.lat).toFixed(5)}, {(+form.lng).toFixed(5)}</div>}
+      </div>
+      <button onClick={()=>setShowMap(true)} style={{background:form.lat?'var(--primary)':'var(--pl)',color:form.lat?'#fff':'var(--pd)',border:'1.5px solid var(--primary)',borderRadius:12,padding:'13px 16px',display:'flex',alignItems:'center',gap:10,fontSize:15,fontWeight:700,width:'100%',justifyContent:'center',cursor:'pointer',marginBottom:13,minHeight:52}}><span style={{fontSize:24}}>🗺️</span>{form.lat?'Alterar localização pelo GPS':'Marcar localização pelo GPS'}</button>
       {form.lat&&form.lng&&<LocCard lat={form.lat} lng={form.lng} mapsLink={form.mapsLink} showToast={showToast} onEdit={()=>setShowMap(true)}/>}
       <div className="field"><label>CEP</label><div style={{display:'flex',gap:6}}>
   <input value={form.cep||''} onChange={e=>setForm(f=>({...f,cep:e.target.value.replace(/\D/g,'').slice(0,8)}))} placeholder="00000000" inputMode="numeric" maxLength={8} style={{flex:1,border:'1.5px solid var(--border)',borderRadius:9,padding:'10px 13px',background:'var(--card)',fontSize:15}}/>

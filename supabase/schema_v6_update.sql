@@ -9,6 +9,11 @@
 ALTER TABLE public.products
   ADD COLUMN IF NOT EXISTS rep_commission_pct DOUBLE PRECISION DEFAULT 0;
 
+-- ── 1b. Campos faltantes em leads ────────────────────────────────────────
+ALTER TABLE public.leads
+  ADD COLUMN IF NOT EXISTS maps_link TEXT DEFAULT '',
+  ADD COLUMN IF NOT EXISTS notes     TEXT DEFAULT '';
+
 -- ── 2. Campos de comissão em orders ──────────────────────────────────────
 ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS commission_type   TEXT DEFAULT 'fixed',

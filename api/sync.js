@@ -105,7 +105,7 @@ async function readAll(ws) {
     products: (products || []).map(p => ({
       id: p.id, name: p.name, model: p.model || '', categoryId: p.category_id || '',
       dimensions: p.dimensions || '', color: p.color || '',
-      price: p.price || 0, notes: p.notes || '', photoIds: p.photo_ids || [],
+      price: p.price || 0, repCommissionPct: p.rep_commission_pct || 0, notes: p.notes || '', photoIds: p.photo_ids || [],
     })),
     visits: (visits || []).map(v => ({
       id: v.id, clientId: v.client_id, date: v.date,
@@ -115,7 +115,8 @@ async function readAll(ws) {
     leads: (leads || []).map(l => ({
       id: l.id, name: l.name, phone: l.phone || '', reference: l.reference || '',
       referralId: l.referral_id || '', referralName: l.referral_name || '',
-      lat: l.lat || 0, lng: l.lng || 0, status: l.status || 'active',
+      lat: l.lat || 0, lng: l.lng || 0, mapsLink: l.maps_link || '',
+      notes: l.notes || '', status: l.status || 'active',
       convertedClientId: l.converted_client_id || null,
       createdAt: l.created_at,
     })),
@@ -240,6 +241,7 @@ async function writeAll(ws, payload) {
     id: l.id, workspace: ws, name: l.name, phone: l.phone || '',
     reference: l.reference || '', referral_id: l.referralId || null,
     referral_name: l.referralName || '', lat: l.lat || 0, lng: l.lng || 0,
+    maps_link: l.mapsLink || '', notes: l.notes || '',
     status: l.status || 'active',
     converted_client_id: l.convertedClientId || null,
     created_at: l.createdAt || now, updated_at: now,
