@@ -1,0 +1,91 @@
+/**
+ * app/api/photos/route.js — v10
+ *
+ * POST /api/photos  → upload de foto para Supabase Storage
+ * GET  /api/photos?photoId=X&workspace=Y → download de foto
+ */
+
+import { NextResponse } from 'next/server';
+import { validateSyncKey, sanitizeWorkspace } from '@/lib/supabase';
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const BUCKET       = process.env.SUPABASE_PHOTOS_BUCKET || 'photos';
+
+export async function POST(request) {
+  try {
+    validateSyncKey(request);
+    const ws = sanitizeWorkspace(
+      request.headers.get('x-workspace') || 'principal'
+    );
+
+    const formData = await request.formData();
+    const file     = formData.get('photo');
+    const photoId  = formData.get('photoId');
+
+    if (!file || !photoId) {
+      return NextResponse.json({ ok: false, error: 'photo e photoId são obrigatórios.' }, { status: 400 });
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer      = Buffer.from(arrayBuffer);
+    const path        = `${ws}/${photoId}.jpg`;
+
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
+      method:  'POST',
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type':  'image/jpeg',
+        'x-upsert':      'true',
+      },
+      body: buffer,
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      return NextResponse.json({ ok: false, error: `Storage error: ${res.status} ${txt}` }, { status: 502 });
+    }
+
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+    return NextResponse.json({ ok: true, url: publicUrl });
+  } catch (e) {
+    console.error('[photos POST]', e.message);
+    return NextResponse.json({ ok: false, error: e.message }, { status: e.status || 500 });
+  }
+}
+
+export async function GET(request) {
+  try {
+    validateSyncKey(request);
+    const { searchParams } = new URL(request.url);
+    const photoId  = searchParams.get('photoId');
+    const ws       = sanitizeWorkspace(searchParams.get('workspace') || 'principal');
+
+    if (!photoId) {
+      return NextResponse.json({ ok: false, error: 'photoId obrigatório.' }, { status: 400 });
+    }
+
+    const path = `${ws}/${photoId}.jpg`;
+    const res  = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
+      headers: { 'Authorization': `Bearer ${SUPABASE_KEY}` },
+    });
+
+    if (!res.ok) {
+      return NextResponse.json({ ok: false, error: 'Foto não encontrada.' }, { status: 404 });
+    }
+
+    const blob    = await res.blob();
+    const buffer  = Buffer.from(await blob.arrayBuffer());
+
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type':  'image/jpeg',
+        'Cache-Control': 'public, max-age=86400',
+      },
+    });
+  } catch (e) {
+    console.error('[photos GET]', e.message);
+    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+  }
+}
