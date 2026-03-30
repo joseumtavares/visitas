@@ -513,63 +513,116 @@ function useStore(){
   const addVisit=v=>up(d=>({...d,visits:[{...v,id:uuid()},...d.visits]}));
   const delVisit=id=>up(d=>({...d,visits:d.visits.filter(v=>v.id!==id)}));
 
-  // orders — auto-create commission when status→pago
-  const addOrder=o=>up(d=>({...d,orders:[{...o,id:uuid(),date:new Date().toISOString()},...d.orders]}));
-  const editOrder=(id,o)=>up(d=>{
-    const old=d.orders.find(x=>x.id===id);
-    // Sempre preservar items do pedido anterior se não forem enviados
-    const mergedO={...o,items:o.items??old?.items??[]};
-    const newOrders=d.orders.map(x=>x.id===id?{...x,...mergedO}:x);
+  // ── COMISSÕES: função central reutilizável ──────────────────────────────
+  // Gera comissões de indicador e representante para um pedido pago.
+  // Chamada tanto em addOrder quanto em editOrder.
+  // Garante deduplicação por orderId — nunca gera duplicata.
+  const _buildCommissions=(d, orderId, orderObj, orderDate)=>{
     let newComm=[...d.commissions];
-    // auto-commission when paid with a referral
-    if(mergedO.status==='pago'&&old?.status!=='pago'&&mergedO.referralId){
-      const ref=d.referrals.find(r=>r.id===mergedO.referralId);
-      const cl=d.clients.find(c=>c.id===mergedO.clientId);
-      const already=d.commissions.find(c=>c.orderId===id);
-      if(!already&&ref){
-        // Calcular valor da comissão: fixo ou percentual
-        const commType=mergedO.commissionType||ref.commissionType||'fixed';
+    let newRepComm=[...d.repCommissions];
+    const items=orderObj.items||[];
+    const clientName=d.clients.find(c=>c.id===orderObj.clientId)?.name||'—';
+
+    // ── 1. Comissão do Indicador ─────────────────────────────────
+    if(orderObj.referralId){
+      const ref=d.referrals.find(r=>r.id===orderObj.referralId);
+      const alreadyRef=newComm.find(c=>c.orderId===orderId);
+      if(!alreadyRef&&ref){
+        const commType=orderObj.commissionType||ref.commissionType||'fixed';
         let amount=0;
         if(commType==='percent'){
-          const pct=parseFloat(mergedO.commissionPct||ref.commissionPct||0);
-          amount=Math.round((mergedO.total||0)*(pct/100)*100)/100;
+          const pct=parseFloat(orderObj.commissionPct||ref.commissionPct||0);
+          amount=Math.round((orderObj.total||0)*(pct/100)*100)/100;
         }else{
-          amount=parseFloat(mergedO.commissionValue||ref.commission||0);
+          amount=parseFloat(orderObj.commissionValue||ref.commission||0);
         }
-        newComm=[{
-          id:uuid(),referralId:mergedO.referralId,referralName:ref.name,
-          orderId:id,clientId:mergedO.clientId,clientName:cl?.name||'—',
-          amount,commissionType:commType,status:'pendente',
-          receiptPhotoIds:[],
-          createdAt:new Date().toISOString(),paidAt:null,
-          orderDate:old?.date,orderTotal:mergedO.total
-        },...newComm];
+        if(amount>0){
+          newComm=[{
+            id:uuid(),referralId:orderObj.referralId,referralName:ref.name,
+            orderId,clientId:orderObj.clientId,clientName,
+            amount,commissionType:commType,status:'pendente',receiptPhotoIds:[],
+            createdAt:new Date().toISOString(),paidAt:null,
+            orderDate,orderTotal:orderObj.total
+          },...newComm];
+        }
       }
     }
-    // ── Comissão do Representante (por produto) ──────────────────
-    let newRepComm=[...d.repCommissions];
-    if(mergedO.status==='pago'&&old?.status!=='pago'){
-      const alreadyRep=d.repCommissions.find(c=>c.orderId===id);
-      if(!alreadyRep){
-        (mergedO.items||[]).forEach(item=>{
-          const prod=d.products.find(p=>p.id===item.productId);
-          const pct=parseFloat(prod?.repCommissionPct||0);
-          if(pct>0){
-            const amount=Math.round((item.unitPrice||0)*(item.qty||1)*(pct/100)*100)/100;
+
+    // ── 2. Comissão do Representante (por produto) ───────────────
+    // Deduplicação por orderId: remove existentes do mesmo pedido antes de reinserir
+    // Isso permite reprocessamento seguro
+    const existingRepIds=new Set(newRepComm.filter(c=>c.orderId===orderId&&c.status==='pendente').map(c=>c.id));
+    if(existingRepIds.size===0){
+      items.forEach(item=>{
+        const prod=d.products.find(p=>p.id===item.productId);
+        const pct=parseFloat(prod?.repCommissionPct||0);
+        if(pct>0){
+          const amount=Math.round((item.unitPrice||0)*(item.qty||1)*(pct/100)*100)/100;
+          if(amount>0){
             newRepComm=[{
-              id:uuid(),orderId:id,
-              orderDate:old?.date||new Date().toISOString(),
-              clientId:mergedO.clientId,clientName:d.clients.find(c=>c.id===mergedO.clientId)?.name||'—',
+              id:uuid(),orderId,
+              orderDate:orderDate||new Date().toISOString(),
+              clientId:orderObj.clientId,clientName,
               productId:item.productId,productName:item.productName||prod?.name||'—',
               qty:item.qty||1,unitPrice:item.unitPrice||0,
               repCommissionPct:pct,amount,
-              orderTotal:mergedO.total,status:'pendente',paidAt:null,receiptPhotoIds:[],
+              orderTotal:orderObj.total,status:'pendente',paidAt:null,receiptPhotoIds:[],
             },...newRepComm];
           }
-        });
-      }
+        }
+      });
+    }
+    return{newComm,newRepComm};
+  };
+
+  // ── addOrder: gera comissão IMEDIATAMENTE se criado como pago ──────────
+  const addOrder=o=>up(d=>{
+    const newId=uuid();
+    const orderDate=new Date().toISOString();
+    const newOrder={...o,id:newId,date:orderDate};
+    let newComm=[...d.commissions];
+    let newRepComm=[...d.repCommissions];
+    if(o.status==='pago'){
+      const built=_buildCommissions(d,newId,newOrder,orderDate);
+      newComm=built.newComm;
+      newRepComm=built.newRepComm;
+    }
+    return{...d,orders:[newOrder,...d.orders],commissions:newComm,repCommissions:newRepComm};
+  });
+
+  // ── editOrder: gera comissão na transição para pago ────────────────────
+  const editOrder=(id,o)=>up(d=>{
+    const old=d.orders.find(x=>x.id===id);
+    const mergedO={...o,items:o.items??old?.items??[]};
+    const newOrders=d.orders.map(x=>x.id===id?{...x,...mergedO}:x);
+    let newComm=[...d.commissions];
+    let newRepComm=[...d.repCommissions];
+    if(mergedO.status==='pago'&&old?.status!=='pago'){
+      const built=_buildCommissions(
+        {...d,orders:newOrders},
+        id, mergedO, old?.date||mergedO.date||new Date().toISOString()
+      );
+      newComm=built.newComm;
+      newRepComm=built.newRepComm;
     }
     return{...d,orders:newOrders,commissions:newComm,repCommissions:newRepComm};
+  });
+
+  // ── reprocessCommissions: reprocessa pedidos pagos sem comissão ────────
+  // Útil para corrigir histórico sem duplicar comissões já existentes
+  const reprocessCommissions=()=>up(d=>{
+    let state={...d};
+    let count=0;
+    d.orders.filter(o=>o.status==='pago').forEach(o=>{
+      const hasRep=(d.repCommissions||[]).some(c=>c.orderId===o.id);
+      const hasRef=o.referralId?(d.commissions||[]).some(c=>c.orderId===o.id):true;
+      if(!hasRep||(o.referralId&&!hasRef)){
+        const built=_buildCommissions(state,o.id,o,o.date);
+        state={...state,commissions:built.newComm,repCommissions:built.newRepComm};
+        count++;
+      }
+    });
+    return state;
   });
   const delOrder=id=>up(d=>({...d,orders:d.orders.filter(x=>x.id!==id),commissions:d.commissions.filter(c=>c.orderId!==id),repCommissions:(d.repCommissions||[]).filter(c=>c.orderId!==id)}));
 
@@ -607,23 +660,50 @@ function useStore(){
   const _dl=(blob,filename)=>{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),2000);};
   const exportBackup=async(withPhotos=true)=>{
     const dateStr=new Date().toISOString().split('T')[0];
+    const ts=new Date().toISOString();
+    // Metadata de auditoria — impede confundir backups
+    const meta={
+      _backupDate:ts,
+      _backupVersion:'v8',
+      _workspace:cloudCfg.workspace||'principal',
+      _counts:{
+        clients:data.clients?.length||0,
+        orders:data.orders?.length||0,
+        products:data.products?.length||0,
+        visits:data.visits?.length||0,
+        leads:data.leads?.length||0,
+        commissions:data.commissions?.length||0,
+        repCommissions:data.repCommissions?.length||0,
+      },
+    };
     if(withPhotos){
       showToast('⏳ Preparando backup completo...');
       const photos=await PS.getAll();
       const pm={};photos.forEach(p=>pm[p.id]={data:p.data,name:p.name||''});
-      const blob=new Blob([JSON.stringify({...data,_photos:pm,_backupType:'full',_backupDate:new Date().toISOString()},null,2)],{type:'application/json'});
-      _dl(blob,`thermovisit-completo-${dateStr}.json`);
-      markBackup();showToast(`✅ Backup completo baixado! (${(blob.size/1024/1024).toFixed(1)} MB)`);
+      meta._backupType='full';meta._photoCount=photos.length;
+      const payload={...data,...meta,_photos:pm};
+      const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+      _dl(blob,`thermovisit-completo-${dateStr}-${data.clients?.length||0}cli.json`);
+      markBackup();showToast(`✅ Backup completo! ${data.clients?.length||0} clientes, ${photos.length} fotos (${(blob.size/1024/1024).toFixed(1)} MB)`);
     }else{
-      const blob=new Blob([JSON.stringify({...data,_backupType:'data-only',_backupDate:new Date().toISOString()},null,2)],{type:'application/json'});
-      _dl(blob,`thermovisit-dados-${dateStr}.json`);
-      markBackup();showToast(`✅ Backup de dados baixado! (${(blob.size/1024).toFixed(0)} KB)`);
+      meta._backupType='data-only';
+      const blob=new Blob([JSON.stringify({...data,...meta},null,2)],{type:'application/json'});
+      _dl(blob,`thermovisit-dados-${dateStr}-${data.clients?.length||0}cli.json`);
+      markBackup();showToast(`✅ Backup de dados! ${data.clients?.length||0} clientes (${(blob.size/1024).toFixed(0)} KB)`);
     }
   };
   const getBackupPreview=async file=>{
     try{
       const txt=await file.text();const bk=JSON.parse(txt);
       const photoCount=bk._photos?Object.keys(bk._photos).length:0;
+      // Auditoria: mostra diferença entre backup e estado atual
+      const currentCounts={
+        clients:data.clients?.length||0,orders:data.orders?.length||0,
+        products:data.products?.length||0,visits:data.visits?.length||0,
+        leads:data.leads?.length||0,
+        commissions:data.commissions?.length||0,
+        repCommissions:data.repCommissions?.length||0,
+      };
       return{
         valid:!!bk.clients,
         clients:bk.clients?.length||0,
@@ -631,9 +711,14 @@ function useStore(){
         visits:bk.visits?.length||0,
         orders:bk.orders?.length||0,
         leads:bk.leads?.length||0,
+        commissions:bk.commissions?.length||0,
+        repCommissions:bk.repCommissions?.length||0,
         photoCount,
         backupType:bk._backupType||'full',
         backupDate:bk._backupDate||null,
+        backupVersion:bk._backupVersion||'legado',
+        workspace:bk._workspace||'?',
+        currentCounts,
         raw:bk
       };
     }catch{return{valid:false};}
@@ -651,7 +736,7 @@ function useStore(){
     }catch{showToast('⚠️ Arquivo inválido');}
   };
 
-  return{data,toast,showToast,addCat,editCat,delCat,addET,editET,delET,addPC,editPC,delPC,addCST,editCST,delCST,addProduct,editProduct,delProduct,addClient,editClient,delClient,addEnv,editEnv,delEnv,updateStatus,addVisit,delVisit,addOrder,editOrder,delOrder,addReferral,editReferral,delReferral,addLead,editLead,delLead,convertLead,payCommission,updateCommissionReceipt,payRepCommission,updateRepCommissionReceipt,saveCompany,saveRepresentative,exportBackup,getBackupPreview,importBackup,cloudCfg,saveCloudConfig,pullFromCloud,pushToCloud,syncState,cleanupOrphanPhotos};
+  return{data,toast,showToast,_up:up,addCat,editCat,delCat,addET,editET,delET,addPC,editPC,delPC,addCST,editCST,delCST,addProduct,editProduct,delProduct,addClient,editClient,delClient,addEnv,editEnv,delEnv,updateStatus,addVisit,delVisit,addOrder,editOrder,delOrder,addReferral,editReferral,delReferral,addLead,editLead,delLead,convertLead,payCommission,updateCommissionReceipt,payRepCommission,updateRepCommissionReceipt,reprocessCommissions,saveCompany,saveRepresentative,exportBackup,getBackupPreview,importBackup,cloudCfg,saveCloudConfig,pullFromCloud,pushToCloud,syncState,cleanupOrphanPhotos};
 }
 
 /* ─── HELPERS ────────────────────────────────────────────────────────────── */
@@ -697,7 +782,7 @@ function Toast({msg}){return msg?<div className="toast">{msg}</div>:null}
 function Confirm({msg,onOk,onCancel}){return(<div className="ov" onClick={onCancel}><div className="modal" onClick={e=>e.stopPropagation()} style={{borderRadius:18}}><div className="mhdl"/><p style={{fontSize:15,fontWeight:700,marginBottom:7}}>{msg}</p><p style={{fontSize:13,color:'var(--text2)',marginBottom:14}}>Esta ação não pode ser desfeita.</p><div className="cbar"><button className="btn bg" style={{flex:1}} onClick={onCancel}>Cancelar</button><button className="btn bd" style={{flex:1}} onClick={onOk}>Confirmar</button></div></div></div>);}
 function Hdr({title,onBack,right}){return(<div className="hdr">{onBack&&<button className="hbtn" onClick={onBack}>←</button>}<span className="hdr-t">{title}</span>{right}</div>);}
 function Nav({page,go}){
-  const items=[['home','🏠','Início'],['clients','👥','Clientes'],['orders','🛒','Vendas'],['repcommissions','💰','Comissões'],['empresa','🏢','Empresa']];
+  const items=[['home','🏠','Início'],['clients','👥','Clientes'],['orders','🛒','Vendas'],['repcommissions','💰','Comissões'],['empresa','🏢','Empresa'],['admindb','⚙️','Admin']];
   const cur=items.map(x=>x[0]).includes(page)?page:'home';
   return(<div className="nav">{items.map(([k,ic,lb])=><div key={k} className={`ni${cur===k?' on':''}`} onClick={()=>go(k)}><span style={{fontSize:20}}>{ic}</span><span>{lb}</span></div>)}</div>);
 }
@@ -1161,17 +1246,37 @@ function Dashboard({store,setPage,setClientId}){
               {restorePreview.backupDate&&<div style={{fontSize:12,color:'var(--text3)',marginBottom:12}}>
                 Gerado em: {new Date(restorePreview.backupDate).toLocaleString('pt-BR')}
               </div>}
+              {/* Metadata do backup */}
+              <div style={{background:'var(--pl)',borderRadius:8,padding:'8px 12px',marginBottom:10,fontSize:12}}>
+                <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+                  <span>📅 <b>Data:</b> {restorePreview.backupDate?new Date(restorePreview.backupDate).toLocaleString('pt-BR'):'?'}</span>
+                  <span>🏷️ <b>Versão:</b> {restorePreview.backupVersion||'?'}</span>
+                  <span>🗂️ <b>Workspace:</b> {restorePreview.workspace||'?'}</span>
+                  <span>🔖 <b>Tipo:</b> {restorePreview.backupType==='full'?'Completo':'Só dados'}</span>
+                </div>
+              </div>
+              {/* Comparação: backup vs atual */}
               <div style={{background:'var(--bg)',borderRadius:10,padding:12,marginBottom:14}}>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
-                  {[['👥 Clientes',restorePreview.clients],['📦 Produtos',restorePreview.products],['📋 Visitas',restorePreview.visits],['🛒 Pedidos',restorePreview.orders],['🔵 Leads',restorePreview.leads],['📷 Fotos',restorePreview.photoCount]].map(([l,v])=>(
-                    <div key={l} style={{background:'var(--card)',borderRadius:8,padding:'8px 10px',border:'1px solid var(--border)'}}>
-                      <div style={{fontSize:12,color:'var(--text2)'}}>{l}</div>
-                      <div style={{fontSize:18,fontWeight:800,color:'var(--pd)'}}>{v}</div>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--text3)',marginBottom:8,textTransform:'uppercase'}}>Backup → Atual</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:4}}>
+                  {[['👥 Clientes',restorePreview.clients,restorePreview.currentCounts?.clients],
+                    ['📦 Produtos',restorePreview.products,restorePreview.currentCounts?.products],
+                    ['📋 Visitas',restorePreview.visits,restorePreview.currentCounts?.visits],
+                    ['🛒 Pedidos',restorePreview.orders,restorePreview.currentCounts?.orders],
+                    ['🔵 Leads',restorePreview.leads,restorePreview.currentCounts?.leads],
+                    ['💰 Com.Rep.',restorePreview.repCommissions||0,restorePreview.currentCounts?.repCommissions],
+                    ['🤝 Com.Ind.',restorePreview.commissions||0,restorePreview.currentCounts?.commissions],
+                    ['📷 Fotos',restorePreview.photoCount,'-'],
+                  ].map(([l,bk,cur])=>(
+                    <div key={l} style={{background:'var(--card)',borderRadius:7,padding:'6px 8px',border:'1px solid var(--border)'}}>
+                      <div style={{fontSize:10,color:'var(--text3)'}}>{l}</div>
+                      <div style={{fontSize:14,fontWeight:800,color:'var(--pd)'}}>{bk}</div>
+                      {cur!==undefined&&cur!=='-'&&<div style={{fontSize:10,color:bk!==cur?'var(--accent)':'var(--text3)'}}>atual: {cur}{bk!==cur?' ⚠️':''}</div>}
                     </div>
                   ))}
                 </div>
                 {restorePreview.backupType==='data-only'&&<div style={{marginTop:8,fontSize:12,color:'var(--accent)',fontWeight:600}}>
-                  ⚠️ Este backup não contém fotos (apenas dados de texto).
+                  ⚠️ Este backup não contém fotos.
                 </div>}
               </div>
               <div style={{background:'#fee2e2',borderRadius:8,padding:10,marginBottom:14,fontSize:13,color:'#b91c1c',fontWeight:600}}>
@@ -1956,6 +2061,269 @@ function RepCommissionsPage({store}){
 }
 
 
+/* ─── ADMIN DB PAGE ──────────────────────────────────────────────────────── */
+function AdminDbPage({store,setPage}){
+  const {data,reprocessCommissions,showToast}=store;
+  const [devMode,setDevMode]=useState(false);
+  const [devPin,setDevPin]=useState('');
+  const [conf,setConf]=useState(null); // {action, label, fn, impact}
+  const [conf2,setConf2]=useState(false);
+  const [logs,setLogs]=useState(()=>{try{return JSON.parse(localStorage.getItem('admin_logs')||'[]');}catch{return[];}});
+  const [tab,setTab]=useState('status');
+
+  const DEV_PIN='1234'; // Em produção, usar variável de ambiente
+
+  const addLog=(action,detail)=>{
+    const entry={ts:new Date().toISOString(),action,detail};
+    const newLogs=[entry,...logs].slice(0,50);
+    setLogs(newLogs);
+    localStorage.setItem('admin_logs',JSON.stringify(newLogs));
+  };
+
+  const tables=[
+    {id:'repCommissions',label:'💰 Comissões Representante',count:data.repCommissions?.length||0,color:'var(--purple)',critical:false},
+    {id:'commissions',   label:'🤝 Comissões Indicadores',  count:data.commissions?.length||0,  color:'var(--teal)',  critical:false},
+    {id:'orders',        label:'🛒 Pedidos',                count:data.orders?.length||0,        color:'var(--accent)',critical:true},
+    {id:'visits',        label:'📋 Visitas',                count:data.visits?.length||0,        color:'var(--info)',  critical:false},
+    {id:'leads',         label:'🔵 Pré-cadastros',          count:data.leads?.length||0,         color:'var(--teal)',  critical:false},
+    {id:'clients',       label:'👥 Clientes',               count:data.clients?.length||0,       color:'var(--primary)',critical:true},
+    {id:'products',      label:'📦 Produtos',               count:data.products?.length||0,      color:'var(--pd)',    critical:true},
+    {id:'environments',  label:'🏗️ Ambientes',              count:(data.clients||[]).reduce((a,c)=>a+(c.environments?.length||0),0),color:'#6b7280',critical:false},
+  ];
+
+  // Grupos de limpeza com ordem correta de FK
+  const groups=[
+    {
+      id:'transactional',label:'🧹 Dados Transacionais',
+      desc:'Remove pedidos, comissões, visitas. Mantém clientes, produtos e configurações.',
+      tables:['repCommissions','commissions','orders','visits'],
+      critical:true,
+    },
+    {
+      id:'leads_only',label:'🔵 Somente Leads/Pré-cadastros',
+      desc:'Remove apenas pré-cadastros ainda não convertidos.',
+      tables:['leads'],
+      critical:false,
+    },
+    {
+      id:'test_clients',label:'⚠️ Tudo exceto configurações',
+      desc:'Remove clientes, ambientes, pedidos, visitas, comissões e leads. Mantém produtos, categorias e configurações da empresa.',
+      tables:['repCommissions','commissions','orders','visits','leads','environments','clients'],
+      critical:true,
+    },
+  ];
+
+  const cleanTable=(tableId)=>{
+    store.setData?.(d=>{
+      // Essa fn usa up() via store — aqui fazemos via dispatch manual
+      return d;
+    });
+    // Limpeza real via store.up interno - chamamos editData
+    switch(tableId){
+      case 'repCommissions': store._up(d=>({...d,repCommissions:[]})); break;
+      case 'commissions':    store._up(d=>({...d,commissions:[]})); break;
+      case 'orders':         store._up(d=>({...d,orders:[]})); break;
+      case 'visits':         store._up(d=>({...d,visits:[]})); break;
+      case 'leads':          store._up(d=>({...d,leads:[]})); break;
+      case 'clients':        store._up(d=>({...d,clients:[],visits:[],orders:[],commissions:[],repCommissions:[],leads:d.leads.filter(l=>l.status!=='converted')})); break;
+      case 'products':       store._up(d=>({...d,products:[]})); break;
+      case 'environments':   store._up(d=>({...d,clients:d.clients.map(c=>({...c,environments:[]}))})); break;
+    }
+  };
+
+  const execClean=(tableIds,label)=>{
+    // Ordem segura de exclusão (respeita FK)
+    const order=['repCommissions','commissions','orders','visits','leads','environments','clients','products'];
+    const sorted=order.filter(id=>tableIds.includes(id));
+    sorted.forEach(id=>cleanTable(id));
+    addLog('LIMPEZA',`Tabelas: ${sorted.join(', ')} | ${label}`);
+    showToast(`🧹 ${label} concluída!`);
+    setConf(null);setConf2(false);
+  };
+
+  const getImpact=(tableIds)=>tables.filter(t=>tableIds.includes(t.id)).reduce((a,t)=>a+t.count,0);
+
+  return(<>
+    <Hdr title="⚙️ Admin — Banco de Dados" onBack={()=>setPage('home')}/>
+    <div className="content">
+
+      {/* Modo Dev */}
+      {!devMode&&<div style={{background:'#fef3c7',border:'1px solid #fcd34d',borderRadius:10,padding:12,marginBottom:14}}>
+        <div style={{fontWeight:700,fontSize:13,marginBottom:6}}>🔐 Modo Desenvolvedor</div>
+        <div style={{fontSize:12,color:'var(--text2)',marginBottom:8}}>Ative para acessar operações destrutivas de manutenção.</div>
+        <div style={{display:'flex',gap:8}}>
+          <input type="password" value={devPin} onChange={e=>setDevPin(e.target.value)} placeholder="PIN de acesso" style={{flex:1,border:'1.5px solid var(--border)',borderRadius:8,padding:'8px 12px',fontSize:14}}/>
+          <button onClick={()=>{if(devPin===DEV_PIN){setDevMode(true);addLog('ACESSO','Modo desenvolvedor ativado');}else showToast('⚠️ PIN incorreto');setDevPin('');}} style={{background:'var(--accent)',color:'#fff',border:'none',borderRadius:8,padding:'0 16px',fontWeight:700,cursor:'pointer'}}>Ativar</button>
+        </div>
+      </div>}
+      {devMode&&<div style={{background:'#fee2e2',border:'1px solid var(--danger)',borderRadius:10,padding:10,marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span style={{fontSize:13,fontWeight:700,color:'var(--danger)'}}>⚠️ MODO DESENVOLVEDOR ATIVO — Operações destrutivas disponíveis</span>
+        <button onClick={()=>{setDevMode(false);addLog('ACESSO','Modo desenvolvedor desativado');}} style={{background:'none',border:'1px solid var(--danger)',borderRadius:7,padding:'4px 10px',fontSize:12,color:'var(--danger)',cursor:'pointer'}}>Desativar</button>
+      </div>}
+
+      <div className="tabs">
+        <div className={`tab${tab==='status'?' on':''}`} onClick={()=>setTab('status')}>📊 Status</div>
+        <div className={`tab${tab==='clean'?' on':''}`} onClick={()=>setTab('clean')}>🧹 Limpeza</div>
+        <div className={`tab${tab==='tools'?' on':''}`} onClick={()=>setTab('tools')}>🔧 Ferramentas</div>
+        <div className={`tab${tab==='logs'?' on':''}`} onClick={()=>setTab('logs')}>📋 Logs</div>
+      </div>
+
+      {/* STATUS */}
+      {tab==='status'&&(<div>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>📊 Registros por Tabela</div>
+        {tables.map(t=>(
+          <div key={t.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',background:'var(--card)',border:'1px solid var(--border)',borderLeft:`4px solid ${t.color}`,borderRadius:9,marginBottom:7}}>
+            <div>
+              <div style={{fontWeight:600,fontSize:14}}>{t.label}</div>
+              {t.critical&&<div style={{fontSize:10,color:'var(--danger)',fontWeight:600}}>⚠️ TABELA CRÍTICA</div>}
+            </div>
+            <div style={{fontWeight:800,fontSize:20,color:t.color}}>{t.count}</div>
+          </div>
+        ))}
+        <div style={{background:'var(--bg)',borderRadius:9,padding:12,marginTop:10,fontSize:12,color:'var(--text2)'}}>
+          <b>Total geral:</b> {tables.reduce((a,t)=>a+t.count,0)} registros em {tables.length} tabelas
+        </div>
+      </div>)}
+
+      {/* LIMPEZA */}
+      {tab==='clean'&&(<div>
+        {!devMode&&<div style={{background:'#fee2e2',borderRadius:10,padding:12,marginBottom:14,fontSize:13,color:'var(--danger)',fontWeight:600,textAlign:'center'}}>🔐 Ative o Modo Desenvolvedor para acessar limpezas</div>}
+
+        {devMode&&(<>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>🧹 Limpeza por Tabela Individual</div>
+          {tables.map(t=>(
+            <div key={t.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',background:'var(--card)',border:'1px solid var(--border)',borderRadius:9,marginBottom:7}}>
+              <div>
+                <div style={{fontWeight:600,fontSize:13}}>{t.label}</div>
+                <div style={{fontSize:11,color:'var(--text3)'}}>{t.count} registros</div>
+              </div>
+              <button
+                onClick={()=>setConf({
+                  action:`Limpar ${t.label}`,
+                  label:t.label,
+                  impact:t.count,
+                  fn:()=>execClean([t.id],t.label),
+                })}
+                disabled={t.count===0}
+                style={{background:t.count===0?'var(--bg)':'#fee2e2',color:t.count===0?'var(--text3)':'var(--danger)',border:`1px solid ${t.count===0?'var(--border)':'var(--danger)'}`,borderRadius:8,padding:'6px 14px',fontSize:12,fontWeight:700,cursor:t.count===0?'default':'pointer'}}
+              >
+                {t.count===0?'Vazio':'🗑️ Limpar'}
+              </button>
+            </div>
+          ))}
+
+          <div style={{height:1,background:'var(--border)',margin:'16px 0'}}/>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:10}}>📦 Limpeza por Grupo</div>
+          {groups.map(g=>{
+            const impact=getImpact(g.tables);
+            return(<div key={g.id} style={{background:'var(--card)',border:`1px solid ${g.critical?'#fca5a5':'var(--border)'}`,borderRadius:10,padding:13,marginBottom:10}}>
+              <div style={{fontWeight:700,fontSize:14,marginBottom:4}}>{g.label}</div>
+              <div style={{fontSize:12,color:'var(--text2)',marginBottom:8}}>{g.desc}</div>
+              <div style={{fontSize:11,color:'var(--text3)',marginBottom:8}}>Tabelas: {g.tables.join(', ')} · {impact} registros afetados</div>
+              <button
+                onClick={()=>setConf({action:g.label,label:g.label,impact,fn:()=>execClean(g.tables,g.label)})}
+                disabled={impact===0}
+                style={{width:'100%',background:impact===0?'var(--bg)':g.critical?'var(--danger)':'var(--accent)',color:impact===0?'var(--text3)':'#fff',border:'none',borderRadius:8,padding:'10px',fontWeight:700,fontSize:13,cursor:impact===0?'default':'pointer'}}
+              >
+                {impact===0?'Sem dados para limpar':`⚠️ Executar limpeza (${impact} registros)`}
+              </button>
+            </div>);
+          })}
+        </>)}
+      </div>)}
+
+      {/* FERRAMENTAS */}
+      {tab==='tools'&&(<div>
+        <div style={{fontWeight:700,fontSize:14,marginBottom:12}}>🔧 Ferramentas de Manutenção</div>
+
+        <div className="cc" style={{marginBottom:10}}>
+          <div style={{fontWeight:700,marginBottom:4}}>🔄 Reprocessar Comissões</div>
+          <div style={{fontSize:13,color:'var(--text2)',marginBottom:10,lineHeight:1.5}}>
+            Verifica todos os pedidos com status <b>Pago</b> e gera comissões faltantes sem criar duplicatas.
+            Use para corrigir histórico de pedidos que foram pagos antes do sistema de comissões existir.
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
+            <div style={{background:'var(--bg)',borderRadius:8,padding:10,textAlign:'center'}}>
+              <div style={{fontSize:20,fontWeight:800,color:'var(--primary)'}}>{(data.orders||[]).filter(o=>o.status==='pago').length}</div>
+              <div style={{fontSize:11,color:'var(--text3)'}}>Pedidos pagos</div>
+            </div>
+            <div style={{background:'var(--bg)',borderRadius:8,padding:10,textAlign:'center'}}>
+              <div style={{fontSize:20,fontWeight:800,color:'var(--purple)'}}>{(data.repCommissions||[]).length}</div>
+              <div style={{fontSize:11,color:'var(--text3)'}}>Com. representante</div>
+            </div>
+          </div>
+          <button className="btn bp" style={{width:'100%'}} onClick={()=>{
+            reprocessCommissions();
+            addLog('REPROCESS','Reprocessamento de comissões executado');
+            showToast('✅ Comissões reprocessadas!');
+          }}>🔄 Reprocessar agora</button>
+        </div>
+
+        <div className="cc">
+          <div style={{fontWeight:700,marginBottom:4}}>🧹 Limpar fotos órfãs</div>
+          <div style={{fontSize:13,color:'var(--text2)',marginBottom:10}}>Remove fotos do IndexedDB que não estão mais vinculadas a nenhum cadastro.</div>
+          <button className="btn bo" style={{width:'100%'}} onClick={()=>{
+            store.cleanupOrphanPhotos();
+            addLog('CLEANUP','Limpeza de fotos órfãs executada');
+          }}>🗑️ Limpar fotos órfãs</button>
+        </div>
+      </div>)}
+
+      {/* LOGS */}
+      {tab==='logs'&&(<div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+          <div style={{fontWeight:700,fontSize:14}}>📋 Log Administrativo</div>
+          <button onClick={()=>{setLogs([]);localStorage.removeItem('admin_logs');}} style={{background:'none',border:'1px solid var(--border)',borderRadius:7,padding:'4px 10px',fontSize:12,cursor:'pointer',color:'var(--text2)'}}>Limpar log</button>
+        </div>
+        {logs.length===0&&<div style={{fontSize:13,color:'var(--text3)',textAlign:'center',padding:20}}>Nenhuma ação registrada ainda.</div>}
+        {logs.map((l,i)=>(
+          <div key={i} style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',marginBottom:6,fontFamily:'monospace',fontSize:12}}>
+            <div style={{color:'var(--text3)',marginBottom:2}}>{new Date(l.ts).toLocaleString('pt-BR')}</div>
+            <div><b style={{color:'var(--danger)'}}>[{l.action}]</b> {l.detail}</div>
+          </div>
+        ))}
+      </div>)}
+    </div>
+
+    {/* Confirmação dupla */}
+    {conf&&!conf2&&(
+      <div className="ov" onClick={()=>setConf(null)}>
+        <div className="modal" onClick={e=>e.stopPropagation()}>
+          <div className="mhdl"/>
+          <div className="mtitle">⚠️ Confirmar Limpeza</div>
+          <div style={{background:'#fee2e2',borderRadius:9,padding:12,marginBottom:14}}>
+            <div style={{fontWeight:700,color:'var(--danger)',marginBottom:4}}>{conf.action}</div>
+            <div style={{fontSize:13}}><b>{conf.impact} registros</b> serão removidos permanentemente.</div>
+            <div style={{fontSize:12,color:'var(--text2)',marginTop:4}}>Esta ação não pode ser desfeita. Faça um backup antes.</div>
+          </div>
+          <div className="cbar">
+            <button className="btn bg" style={{flex:1}} onClick={()=>setConf(null)}>Cancelar</button>
+            <button className="btn bd" style={{flex:1}} onClick={()=>setConf2(true)}>Continuar →</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {conf&&conf2&&(
+      <div className="ov" onClick={()=>{setConf(null);setConf2(false);}}>
+        <div className="modal" onClick={e=>e.stopPropagation()}>
+          <div className="mhdl"/>
+          <div className="mtitle">🔴 CONFIRMAÇÃO FINAL</div>
+          <div style={{background:'#fee2e2',borderRadius:9,padding:12,marginBottom:14,textAlign:'center'}}>
+            <div style={{fontSize:32,marginBottom:8}}>⚠️</div>
+            <div style={{fontWeight:800,color:'var(--danger)',fontSize:15,marginBottom:4}}>{conf.action}</div>
+            <div style={{fontSize:14}}><b>{conf.impact} registros</b> serão <b>apagados permanentemente</b>.</div>
+          </div>
+          <div className="cbar">
+            <button className="btn bg" style={{flex:1}} onClick={()=>{setConf(null);setConf2(false);}}>❌ Cancelar</button>
+            <button className="btn bd" style={{flex:2}} onClick={conf.fn}>🗑️ SIM, APAGAR TUDO</button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>);
+}
+
+
 /* ─── APP ROOT ───────────────────────────────────────────────────────────── */
 function App(){
   const store=useStore();
@@ -1985,7 +2353,7 @@ function App(){
       case 'orders':return<OrdersList store={store} setPage={go} setClientId={goClient} setEditOrderId={id=>{setEditOrderId(id);setPage('orderForm');}}/>;
       case 'orderForm':return<OrderForm key={editOrderId||'new-order'} store={store} setPage={go} editId={editOrderId} clearEdit={()=>setEditOrderId(null)}/>;
       case 'reports':return<ReportsPage store={store}/>;
-      case 'repcommissions':return<RepCommissionsPage store={store}/>;
+      case 'repcommissions':return<RepCommissionsPage store={store}/>;case 'admindb':return<AdminDbPage store={store} setPage={go}/>;
       case 'empresa':return<EmpresaPage store={store} setPage={go} setClientId={setClientId}/>;
       default:return<Dashboard store={store} setPage={go} setClientId={setClientId}/>;
     }
