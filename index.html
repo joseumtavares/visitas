@@ -307,10 +307,36 @@ function loadCloudCfg(){
 function persistCloudCfg(cfg){
   try{localStorage.setItem(CLOUD_CFG_KEY,JSON.stringify({workspace:(cfg.workspace||'principal').trim()||'principal',syncKey:(cfg.syncKey||'').trim(),autoSync:cfg.autoSync!==false}));return true;}catch{return false;}
 }
+function applyTombstones(state, tombstones){
+  // tombstones = { table_name: [id, id, ...], ... }
+  // Remove do estado local qualquer registro que o servidor marcou como deletado
+  if(!tombstones||Object.keys(tombstones).length===0) return state;
+  let s={...state};
+  const del=(arr,ids)=>(arr||[]).filter(r=>!ids.includes(r.id));
+  if(tombstones.clients)      s={...s,clients:del(s.clients,tombstones.clients)};
+  if(tombstones.products)     s={...s,products:del(s.products,tombstones.products)};
+  if(tombstones.visits)       s={...s,visits:del(s.visits,tombstones.visits)};
+  if(tombstones.leads)        s={...s,leads:del(s.leads,tombstones.leads)};
+  if(tombstones.orders)       s={...s,orders:del(s.orders,tombstones.orders)};
+  if(tombstones.commissions)  s={...s,commissions:del(s.commissions,tombstones.commissions)};
+  if(tombstones.rep_commissions) s={...s,repCommissions:del(s.repCommissions,tombstones.rep_commissions)};
+  if(tombstones.referrals)    s={...s,referrals:del(s.referrals,tombstones.referrals)};
+  if(tombstones.categories)   s={...s,categories:del(s.categories,tombstones.categories)};
+  if(tombstones.env_types)    s={...s,envTypes:del(s.envTypes,tombstones.env_types)};
+  if(tombstones.product_categories) s={...s,productCategories:del(s.productCategories,tombstones.product_categories)};
+  if(tombstones.custom_status_types) s={...s,customStatusTypes:del(s.customStatusTypes,tombstones.custom_status_types)};
+  // environments ficam dentro de clients, remover por id
+  if(tombstones.environments){
+    const envIds=new Set(tombstones.environments);
+    s={...s,clients:(s.clients||[]).map(c=>({...c,environments:(c.environments||[]).filter(e=>!envIds.has(e.id))}))};
+  }
+  return s;
+}
+
 function normalizeDataState(s){
   const normalized=s?{...INIT,...s,leads:s.leads||[],commissions:s.commissions||[],repCommissions:s.repCommissions||[],referrals:s.referrals||[],company:s.company||INIT.company,representative:s.representative||INIT.representative,customStatusTypes:s.customStatusTypes||INIT.customStatusTypes}:INIT;
   const meta=s?._meta||{};
-  return{...normalized,_meta:{schemaVersion:5,localUpdatedAt:meta.localUpdatedAt||meta.cloudUpdatedAt||new Date().toISOString(),cloudUpdatedAt:meta.cloudUpdatedAt||null,lastCloudPullAt:meta.lastCloudPullAt||null,lastCloudPushAt:meta.lastCloudPushAt||null}};
+  return{...normalized,_meta:{schemaVersion:6,localUpdatedAt:meta.localUpdatedAt||meta.cloudUpdatedAt||new Date().toISOString(),cloudUpdatedAt:meta.cloudUpdatedAt||null,lastCloudPullAt:meta.lastCloudPullAt||null,lastCloudPushAt:meta.lastCloudPushAt||null}};
 }
 function stampDataState(next,prev){
   const prevMeta=prev?._meta||{};
@@ -396,7 +422,9 @@ function useStore(){
     try{
       const remote=await cloudRequest('GET');
       if(remote?.payload){
-        const normalized=normalizeDataState({...remote.payload,_meta:{...(remote.payload._meta||{}),cloudUpdatedAt:remote.updatedAt||null,lastCloudPullAt:new Date().toISOString()}});
+        // Aplicar tombstones antes de normalizar — garante que exclusões remotas se propagam localmente
+        const withTombstones=applyTombstones(remote.payload, remote.payload._tombstones||{});
+        const normalized=normalizeDataState({...withTombstones,_meta:{...(remote.payload._meta||{}),cloudUpdatedAt:remote.updatedAt||null,lastCloudPullAt:new Date().toISOString()}});
         setData(normalized);
         saveData(normalized);
       }
@@ -441,7 +469,8 @@ function useStore(){
       const localTs=dataRef.current?._meta?.localUpdatedAt?new Date(dataRef.current._meta.localUpdatedAt).getTime():0;
       const remoteTs=remote?.updatedAt?new Date(remote.updatedAt).getTime():0;
       if(remote?.payload&&remoteTs>localTs){
-        const normalized=normalizeDataState({...remote.payload,_meta:{...(remote.payload._meta||{}),cloudUpdatedAt:remote.updatedAt,lastCloudPullAt:new Date().toISOString()}});
+        const withTombstones=applyTombstones(remote.payload, remote.payload._tombstones||{});
+        const normalized=normalizeDataState({...withTombstones,_meta:{...(remote.payload._meta||{}),cloudUpdatedAt:remote.updatedAt,lastCloudPullAt:new Date().toISOString()}});
         setData(normalized);
         saveData(normalized);
         setSyncState(s=>({...s,ready:true,enabled:true,busy:false,lastPull:new Date().toISOString(),remoteUpdatedAt:remote.updatedAt,error:null}));
@@ -495,7 +524,18 @@ function useStore(){
   // clients
   const addClient=c=>up(d=>({...d,clients:[...d.clients,{...c,id:uuid(),environments:[],activityStatus:{hasEquip:false,bioPellets:false,cavaco:false,briquete:false,pellets:false,customFlags:{},custom:''}}]}));
   const editClient=(id,c)=>up(d=>({...d,clients:d.clients.map(x=>x.id===id?{...x,...c}:x)}));
-  const delClient=id=>up(d=>{const orderIds=d.orders.filter(o=>o.clientId===id).map(o=>o.id);return{...d,clients:d.clients.filter(x=>x.id!==id),visits:d.visits.filter(v=>v.clientId!==id),orders:d.orders.filter(o=>o.clientId!==id),commissions:d.commissions.filter(c=>!orderIds.includes(c.orderId))};});
+  const delClient=id=>up(d=>{
+    const orderIds=new Set(d.orders.filter(o=>o.clientId===id).map(o=>o.id));
+    return{
+      ...d,
+      clients:d.clients.filter(x=>x.id!==id),
+      visits:d.visits.filter(v=>v.clientId!==id),
+      orders:d.orders.filter(o=>o.clientId!==id),
+      commissions:d.commissions.filter(c=>!orderIds.has(c.orderId)),
+      repCommissions:(d.repCommissions||[]).filter(c=>!orderIds.has(c.orderId)),
+      leads:d.leads.map(l=>l.convertedClientId===id?{...l,convertedClientId:null}:l),
+    };
+  });
 
   // environments
   const addEnv=(cid,e)=>up(d=>{
@@ -515,19 +555,25 @@ function useStore(){
 
   // ── COMISSÕES: função central reutilizável ──────────────────────────────
   // Gera comissões de indicador e representante para um pedido pago.
-  // Chamada tanto em addOrder quanto em editOrder.
-  // Garante deduplicação por orderId — nunca gera duplicata.
+  // Chamada tanto em addOrder quanto em editOrder e reprocessCommissions.
+  //
+  // IDEMPOTÊNCIA GARANTIDA:
+  //   - Comissão de indicador: verifica existência por orderId → nunca duplica
+  //   - Comissão de representante: remove todas pendentes do orderId antes de reinserir
+  //     (preserva as já pagas — status 'paga')
+  //   - Reprocessamento: seguro pois deduplicação é por orderId+productId
   const _buildCommissions=(d, orderId, orderObj, orderDate)=>{
     let newComm=[...d.commissions];
     let newRepComm=[...d.repCommissions];
     const items=orderObj.items||[];
     const clientName=d.clients.find(c=>c.id===orderObj.clientId)?.name||'—';
 
-    // ── 1. Comissão do Indicador ─────────────────────────────────
+    // ── 1. Comissão do Indicador ─────────────────────────────────────────
     if(orderObj.referralId){
       const ref=d.referrals.find(r=>r.id===orderObj.referralId);
-      const alreadyRef=newComm.find(c=>c.orderId===orderId);
-      if(!alreadyRef&&ref){
+      // Deduplicação real: qualquer comissão existente para esse orderId (paga ou não)
+      const alreadyExists=newComm.some(c=>c.orderId===orderId);
+      if(!alreadyExists&&ref){
         const commType=orderObj.commissionType||ref.commissionType||'fixed';
         let amount=0;
         if(commType==='percent'){
@@ -548,30 +594,36 @@ function useStore(){
       }
     }
 
-    // ── 2. Comissão do Representante (por produto) ───────────────
-    // Deduplicação por orderId: remove existentes do mesmo pedido antes de reinserir
-    // Isso permite reprocessamento seguro
-    const existingRepIds=new Set(newRepComm.filter(c=>c.orderId===orderId&&c.status==='pendente').map(c=>c.id));
-    if(existingRepIds.size===0){
-      items.forEach(item=>{
-        const prod=d.products.find(p=>p.id===item.productId);
-        const pct=parseFloat(prod?.repCommissionPct||0);
-        if(pct>0){
-          const amount=Math.round((item.unitPrice||0)*(item.qty||1)*(pct/100)*100)/100;
-          if(amount>0){
-            newRepComm=[{
-              id:uuid(),orderId,
-              orderDate:orderDate||new Date().toISOString(),
-              clientId:orderObj.clientId,clientName,
-              productId:item.productId,productName:item.productName||prod?.name||'—',
-              qty:item.qty||1,unitPrice:item.unitPrice||0,
-              repCommissionPct:pct,amount,
-              orderTotal:orderObj.total,status:'pendente',paidAt:null,receiptPhotoIds:[],
-            },...newRepComm];
-          }
-        }
+    // ── 2. Comissão do Representante (por produto) ───────────────────────
+    // Estratégia correta:
+    //   a) Preservar comissões JÁ PAGAS do pedido (nunca sobrescrever)
+    //   b) Remover apenas as PENDENTES do mesmo pedido (permite reprocessamento)
+    //   c) Reinserir com valores atuais dos itens/produtos
+    const paidRepComms=newRepComm.filter(c=>c.orderId===orderId&&c.status==='paga');
+    const otherRepComms=newRepComm.filter(c=>c.orderId!==orderId);
+    // Produtos cujas comissões já foram pagas — não reprocessar
+    const paidProductIds=new Set(paidRepComms.map(c=>c.productId));
+
+    const newItemComms=[];
+    items.forEach(item=>{
+      if(paidProductIds.has(item.productId))return; // já pago, não alterar
+      const prod=d.products.find(p=>p.id===item.productId);
+      const pct=parseFloat(prod?.repCommissionPct||0);
+      if(pct<=0)return;
+      const amount=Math.round((item.unitPrice||0)*(item.qty||1)*(pct/100)*100)/100;
+      if(amount<=0)return;
+      newItemComms.push({
+        id:uuid(),orderId,
+        orderDate:orderDate||new Date().toISOString(),
+        clientId:orderObj.clientId,clientName,
+        productId:item.productId,productName:item.productName||prod?.name||'—',
+        qty:item.qty||1,unitPrice:item.unitPrice||0,
+        repCommissionPct:pct,amount,
+        orderTotal:orderObj.total,status:'pendente',paidAt:null,receiptPhotoIds:[],
       });
-    }
+    });
+
+    newRepComm=[...otherRepComms,...paidRepComms,...newItemComms];
     return{newComm,newRepComm};
   };
 
@@ -591,32 +643,57 @@ function useStore(){
   });
 
   // ── editOrder: gera comissão na transição para pago ────────────────────
+  // v9: também reprocessa se o pedido já estava pago e itens/valores mudaram
   const editOrder=(id,o)=>up(d=>{
     const old=d.orders.find(x=>x.id===id);
     const mergedO={...o,items:o.items??old?.items??[]};
     const newOrders=d.orders.map(x=>x.id===id?{...x,...mergedO}:x);
     let newComm=[...d.commissions];
     let newRepComm=[...d.repCommissions];
-    if(mergedO.status==='pago'&&old?.status!=='pago'){
-      const built=_buildCommissions(
-        {...d,orders:newOrders},
-        id, mergedO, old?.date||mergedO.date||new Date().toISOString()
-      );
-      newComm=built.newComm;
-      newRepComm=built.newRepComm;
+
+    const isNowPaid=mergedO.status==='pago';
+    const wasPaid=old?.status==='pago';
+
+    if(isNowPaid){
+      // Caso 1: transição não-pago → pago (gerar comissões)
+      // Caso 2: já estava pago mas itens/valores mudaram (reprocessar rep commission)
+      const itemsChanged=JSON.stringify((mergedO.items||[]).map(i=>({p:i.productId,q:i.qty,u:i.unitPrice})))!==
+                         JSON.stringify((old?.items||[]).map(i=>({p:i.productId,q:i.qty,u:i.unitPrice})));
+      const totalChanged=mergedO.total!==old?.total;
+      const referralChanged=mergedO.referralId!==old?.referralId;
+
+      if(!wasPaid||itemsChanged||totalChanged||referralChanged){
+        const built=_buildCommissions(
+          {...d,orders:newOrders},
+          id, mergedO, old?.date||mergedO.date||new Date().toISOString()
+        );
+        newComm=built.newComm;
+        newRepComm=built.newRepComm;
+      }
     }
     return{...d,orders:newOrders,commissions:newComm,repCommissions:newRepComm};
   });
 
-  // ── reprocessCommissions: reprocessa pedidos pagos sem comissão ────────
-  // Útil para corrigir histórico sem duplicar comissões já existentes
+  // ── reprocessCommissions: reprocessa TODOS os pedidos pagos ────────────
+  // v9: reprocessa comissões de indicador E representante para pedidos pagos
+  // que estejam faltando qualquer comissão. Idempotente e seguro.
   const reprocessCommissions=()=>up(d=>{
     let state={...d};
     let count=0;
     d.orders.filter(o=>o.status==='pago').forEach(o=>{
-      const hasRep=(d.repCommissions||[]).some(c=>c.orderId===o.id);
-      const hasRef=o.referralId?(d.commissions||[]).some(c=>c.orderId===o.id):true;
-      if(!hasRep||(o.referralId&&!hasRef)){
+      // Verificar se há alguma comissão faltando
+      const hasRepComm=(d.repCommissions||[]).some(c=>c.orderId===o.id);
+      const hasRefComm=o.referralId?(d.commissions||[]).some(c=>c.orderId===o.id):true;
+      // Verificar se itens mudaram desde a última geração
+      const existingRepComms=(d.repCommissions||[]).filter(c=>c.orderId===o.id&&c.status==='pendente');
+      const existingProductIds=new Set(existingRepComms.map(c=>c.productId));
+      const currentProductIds=new Set((o.items||[]).filter(i=>{
+        const prod=d.products.find(p=>p.id===i.productId);
+        return parseFloat(prod?.repCommissionPct||0)>0;
+      }).map(i=>i.productId));
+      const itemsNeedUpdate=hasRepComm&&[...currentProductIds].some(id=>!existingProductIds.has(id));
+
+      if(!hasRepComm||!hasRefComm||itemsNeedUpdate){
         const built=_buildCommissions(state,o.id,o,o.date);
         state={...state,commissions:built.newComm,repCommissions:built.newRepComm};
         count++;
@@ -731,9 +808,18 @@ function useStore(){
         showToast('⏳ Restaurando fotos...');
         for(const[id,p]of Object.entries(_photos))await PS.save(id,p.data,p.name);
       }
-      setData(normalizeDataState(appData));
-      markBackup();showToast('✅ Backup restaurado com sucesso!');
-    }catch{showToast('⚠️ Arquivo inválido');}
+      const normalized=normalizeDataState(appData);
+      setData(normalized);
+      saveData(normalized); // persistir imediatamente no localStorage
+      markBackup();
+      showToast('✅ Backup restaurado! Sincronizando com a nuvem...');
+      // Após restaurar, empurrar para nuvem imediatamente para que o banco remoto
+      // reflita o estado restaurado (evita que pull futuro reintroduza dados antigos)
+      setTimeout(()=>pushToCloud(normalized,{silent:false}),1500);
+    }catch(e){
+      console.error('[importBackup]',e);
+      showToast('⚠️ Arquivo inválido ou corrompido');
+    }
   };
 
   return{data,toast,showToast,_up:up,addCat,editCat,delCat,addET,editET,delET,addPC,editPC,delPC,addCST,editCST,delCST,addProduct,editProduct,delProduct,addClient,editClient,delClient,addEnv,editEnv,delEnv,updateStatus,addVisit,delVisit,addOrder,editOrder,delOrder,addReferral,editReferral,delReferral,addLead,editLead,delLead,convertLead,payCommission,updateCommissionReceipt,payRepCommission,updateRepCommissionReceipt,reprocessCommissions,saveCompany,saveRepresentative,exportBackup,getBackupPreview,importBackup,cloudCfg,saveCloudConfig,pullFromCloud,pushToCloud,syncState,cleanupOrphanPhotos};
@@ -2062,6 +2148,21 @@ function RepCommissionsPage({store}){
 
 
 /* ─── ADMIN DB PAGE ──────────────────────────────────────────────────────── */
+function PinConfigurator({DEV_PIN_KEY,hashPin,showToast,addLog}){
+  const [np,setNp]=useState('');
+  const [np2,setNp2]=useState('');
+  return(<div style={{display:'flex',flexDirection:'column',gap:8}}>
+    <input type="password" value={np} onChange={e=>setNp(e.target.value)} placeholder="Novo PIN (mín. 4 caracteres)" style={{border:'1.5px solid var(--border)',borderRadius:8,padding:'8px 12px',fontSize:14}}/>
+    <input type="password" value={np2} onChange={e=>setNp2(e.target.value)} placeholder="Confirmar PIN" style={{border:'1.5px solid var(--border)',borderRadius:8,padding:'8px 12px',fontSize:14}}/>
+    <button className="btn bp" onClick={()=>{
+      if(np.length<4){showToast('⚠️ PIN precisa ter pelo menos 4 caracteres');return;}
+      if(np!==np2){showToast('⚠️ PINs não conferem');return;}
+      try{localStorage.setItem(DEV_PIN_KEY,hashPin(np));showToast('✅ PIN configurado!');addLog('SEGURANÇA','PIN do modo dev atualizado');setNp('');setNp2('');}
+      catch{showToast('⚠️ Erro ao salvar PIN');}
+    }}>Salvar PIN</button>
+  </div>);
+}
+
 function AdminDbPage({store,setPage}){
   const {data,reprocessCommissions,showToast}=store;
   const [devMode,setDevMode]=useState(false);
@@ -2071,7 +2172,13 @@ function AdminDbPage({store,setPage}){
   const [logs,setLogs]=useState(()=>{try{return JSON.parse(localStorage.getItem('admin_logs')||'[]');}catch{return[];}});
   const [tab,setTab]=useState('status');
 
-  const DEV_PIN='1234'; // Em produção, usar variável de ambiente
+  // PIN de acesso ao modo dev — configurável pelo usuário, nunca hardcoded.
+  // Padrão é vazio (forçando o usuário a definir um PIN primeiro).
+  // Armazenado em localStorage com chave separada.
+  const DEV_PIN_KEY='cv_dev_pin_hash';
+  const getStoredPinHash=()=>{try{return localStorage.getItem(DEV_PIN_KEY)||'';}catch{return '';}};
+  // Hash simples (djb2) — suficiente para PIN local, não é criptografia real
+  const hashPin=s=>{let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h)^s.charCodeAt(i);return String(h>>>0);};
 
   const addLog=(action,detail)=>{
     const entry={ts:new Date().toISOString(),action,detail};
@@ -2153,7 +2260,13 @@ function AdminDbPage({store,setPage}){
         <div style={{fontSize:12,color:'var(--text2)',marginBottom:8}}>Ative para acessar operações destrutivas de manutenção.</div>
         <div style={{display:'flex',gap:8}}>
           <input type="password" value={devPin} onChange={e=>setDevPin(e.target.value)} placeholder="PIN de acesso" style={{flex:1,border:'1.5px solid var(--border)',borderRadius:8,padding:'8px 12px',fontSize:14}}/>
-          <button onClick={()=>{if(devPin===DEV_PIN){setDevMode(true);addLog('ACESSO','Modo desenvolvedor ativado');}else showToast('⚠️ PIN incorreto');setDevPin('');}} style={{background:'var(--accent)',color:'#fff',border:'none',borderRadius:8,padding:'0 16px',fontWeight:700,cursor:'pointer'}}>Ativar</button>
+          <button onClick={()=>{
+            const stored=getStoredPinHash();
+            if(!stored){showToast('⚠️ Nenhum PIN configurado. Defina um PIN primeiro na seção abaixo.');setDevPin('');return;}
+            if(hashPin(devPin)===stored){setDevMode(true);addLog('ACESSO','Modo desenvolvedor ativado');}
+            else showToast('⚠️ PIN incorreto');
+            setDevPin('');
+          }} style={{background:'var(--accent)',color:'#fff',border:'none',borderRadius:8,padding:'0 16px',fontWeight:700,cursor:'pointer'}}>Ativar</button>
         </div>
       </div>}
       {devMode&&<div style={{background:'#fee2e2',border:'1px solid var(--danger)',borderRadius:10,padding:10,marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
@@ -2257,6 +2370,15 @@ function AdminDbPage({store,setPage}){
             addLog('REPROCESS','Reprocessamento de comissões executado');
             showToast('✅ Comissões reprocessadas!');
           }}>🔄 Reprocessar agora</button>
+        </div>
+
+        <div className="cc" style={{marginBottom:10}}>
+          <div style={{fontWeight:700,marginBottom:4}}>🔑 Configurar PIN do Modo Dev</div>
+          <div style={{fontSize:13,color:'var(--text2)',marginBottom:10,lineHeight:1.5}}>
+            Define o PIN de acesso ao modo desenvolvedor. Armazenado como hash local.
+            {getStoredPinHash()?<span style={{color:'var(--primary)',fontWeight:600}}> ✅ PIN configurado.</span>:<span style={{color:'var(--danger)',fontWeight:600}}> ⚠️ Nenhum PIN definido!</span>}
+          </div>
+          <PinConfigurator DEV_PIN_KEY={DEV_PIN_KEY} hashPin={hashPin} showToast={showToast} addLog={addLog}/>
         </div>
 
         <div className="cc">
