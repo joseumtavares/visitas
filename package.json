@@ -1,6 +1,6 @@
 {
-  "name": "thermovisit-v10",
-  "version": "10.0.0",
+  "name": "agri-vendas",
+  "version": "10.2.0",
   "private": true,
   "scripts": {
     "dev":   "next dev",
@@ -16,5 +16,10 @@
   "devDependencies": {
     "eslint":         "8.57.0",
     "eslint-config-next": "14.2.5"
+  },
+  "notes": {
+    "leaflet": "Adicione via CDN no HTML: https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+    "jspdf": "Opcional para export PDF server-side: npm install jspdf",
+    "fabric": "Opcional para editor de desenho avançado: npm install fabric"
   }
 }
