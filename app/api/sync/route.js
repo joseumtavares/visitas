@@ -1,5 +1,5 @@
 /**
- * app/api/sync/route.js  — v10
+ * app/api/sync/route.js  — v10.2 CORRIGIDO
  *
  * GET  /api/sync?workspace=X  → lê todas as tabelas e devolve estado completo
  * POST /api/sync?workspace=X  → recebe estado completo e sincroniza
@@ -10,6 +10,12 @@
  *  - clients: inclui campos de endereço separados (cep, street, number, etc.)
  *  - warnings de sync são logados E retornados ao frontend (sem falha silenciosa)
  *  - erros de rep_commissions não são mais engolidos silenciosamente
+ *
+ * CORREÇÕES v10.2:
+ *  [BUG CORRIGIDO] readAll: orderNumber (o.order_number) não era mapeado →
+ *    OrderForm exibia "Pedido Nº undefined" após sync. Corrigido abaixo.
+ *  [BUG CORRIGIDO] writeAll orders: order_number omitido para preservar o
+ *    valor gerado pelo trigger do banco (não sobrescrever com null).
  */
 
 import { NextResponse } from 'next/server';
@@ -106,6 +112,9 @@ async function readAll(ws) {
     commissionType:  o.commission_type || 'fixed',
     commissionValue: o.commission_value || 0,
     commissionPct:   o.commission_pct || 0,
+    // [BUG CORRIGIDO v10.2] order_number não estava sendo mapeado.
+    // O OrderForm exibia "Pedido Nº undefined" após sincronização.
+    orderNumber: o.order_number || null,
     items: (orderItems || [])
       .filter(i => i.order_id === o.id)
       .map(i => ({
@@ -398,6 +407,10 @@ async function writeAll(ws, payload) {
       commission_value: o.commissionValue || 0,
       commission_pct: o.commissionPct || 0,
       updated_at: now,
+      // [BUG CORRIGIDO v10.2] order_number NÃO é enviado no upsert.
+      // O banco gera via trigger (set_order_number) na inserção.
+      // Enviar order_number: null aqui sobrescreveria o número existente
+      // em pedidos já criados, zerando o campo após cada sync.
     }));
     await upsertTable('orders', rows);
     await propagateDeletions(ws, 'orders', rows.map(r => r.id), `/rest/v1/orders?workspace=eq.${enc}&select=id`);
