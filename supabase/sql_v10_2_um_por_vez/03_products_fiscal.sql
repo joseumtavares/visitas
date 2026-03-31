@@ -1,3 +1,0 @@
-ALTER TABLE public.products
-  ADD COLUMN IF NOT EXISTS finame_code TEXT DEFAULT '',
-  ADD COLUMN IF NOT EXISTS ncm_code    TEXT DEFAULT '';

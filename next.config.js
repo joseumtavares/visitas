@@ -1,10 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Alias @/ aponta para a raiz do projeto
-  // Necessário para resolver @/lib/supabase, @/lib/cep, etc. na Vercel
-  webpack(config) {
-    return config;
-  },
+  // Desabilita telemetria
+  // Alias @/ resolvido via jsconfig.json
 };
 
 module.exports = nextConfig;
