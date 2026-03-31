@@ -1,5 +1,5 @@
 /**
- * app/api/sync/route.js  — v10.2 CORRIGIDO
+ * app/api/sync/route.js  — v10
  *
  * GET  /api/sync?workspace=X  → lê todas as tabelas e devolve estado completo
  * POST /api/sync?workspace=X  → recebe estado completo e sincroniza
@@ -10,12 +10,6 @@
  *  - clients: inclui campos de endereço separados (cep, street, number, etc.)
  *  - warnings de sync são logados E retornados ao frontend (sem falha silenciosa)
  *  - erros de rep_commissions não são mais engolidos silenciosamente
- *
- * CORREÇÕES v10.2:
- *  [BUG CORRIGIDO] readAll: orderNumber (o.order_number) não era mapeado →
- *    OrderForm exibia "Pedido Nº undefined" após sync. Corrigido abaixo.
- *  [BUG CORRIGIDO] writeAll orders: order_number omitido para preservar o
- *    valor gerado pelo trigger do banco (não sobrescrever com null).
  */
 
 import { NextResponse } from 'next/server';
@@ -80,10 +74,6 @@ async function readAll(ws) {
       hasEquip: false, bioPellets: false, cavaco: false,
       briquete: false, pellets: false, customFlags: {}, custom: '',
     },
-    // Documentos (v10.2)
-    documentFrontPath:   c.document_front_path   || null,
-    documentBackPath:    c.document_back_path     || null,
-    residenceProofPath:  c.residence_proof_path   || null,
     environments: (environments || [])
       .filter(e => e.client_id === c.id)
       .map(e => ({
@@ -112,9 +102,6 @@ async function readAll(ws) {
     commissionType:  o.commission_type || 'fixed',
     commissionValue: o.commission_value || 0,
     commissionPct:   o.commission_pct || 0,
-    // [BUG CORRIGIDO v10.2] order_number não estava sendo mapeado.
-    // O OrderForm exibia "Pedido Nº undefined" após sincronização.
-    orderNumber: o.order_number || null,
     items: (orderItems || [])
       .filter(i => i.order_id === o.id)
       .map(i => ({
@@ -148,14 +135,10 @@ async function readAll(ws) {
       dimensions: p.dimensions || '', color: p.color || '',
       price: p.price || 0, repCommissionPct: p.rep_commission_pct || 0,
       notes: p.notes || '', photoIds: p.photo_ids || [],
-      finameCode: p.finame_code || '',   // v10.2
-      ncmCode:    p.ncm_code    || '',   // v10.2
     })),
     visits: (visits || []).map(v => ({
       id: v.id, clientId: v.client_id, date: v.date,
       notes: v.notes || '', nextContact: v.next_contact || '',
-      activityType: v.activity_type || 'Visita',  // v10.2
-      lat: v.lat || 0, lng: v.lng || 0,           // v10.2 — geoloc da visita
     })),
     referrals: (referrals || []).map(r => ({
       id: r.id, name: r.name, commission: r.commission || 0,
@@ -327,10 +310,6 @@ async function writeAll(ws, payload) {
       lat: c.lat || 0, lng: c.lng || 0,
       maps_link: c.mapsLink || '', notes: c.notes || '',
       activity_status: c.activityStatus || {}, updated_at: now,
-      // Documentos (v10.2)
-      document_front_path:  c.documentFrontPath  || null,
-      document_back_path:   c.documentBackPath    || null,
-      residence_proof_path: c.residenceProofPath  || null,
     }));
     await upsertTable('clients', rows);
     await propagateDeletions(ws, 'clients', rows.map(r => r.id), `/rest/v1/clients?workspace=eq.${enc}&select=id`);
@@ -360,8 +339,6 @@ async function writeAll(ws, payload) {
       rep_commission_pct: p.repCommissionPct || 0, category_id: p.categoryId || null,
       dimensions: p.dimensions || '', color: p.color || '', price: p.price || 0,
       notes: p.notes || '', photo_ids: p.photoIds || [], updated_at: now,
-      finame_code: p.finameCode || '',   // v10.2
-      ncm_code:    p.ncmCode    || '',   // v10.2
     }));
     await upsertTable('products', rows);
     await propagateDeletions(ws, 'products', rows.map(r => r.id), `/rest/v1/products?workspace=eq.${enc}&select=id`);
@@ -372,8 +349,6 @@ async function writeAll(ws, payload) {
     const rows = (payload.visits || []).map(v => ({
       id: v.id, workspace: ws, client_id: v.clientId, date: v.date,
       notes: v.notes || '', next_contact: v.nextContact || null, updated_at: now,
-      activity_type: v.activityType || 'Visita',  // v10.2
-      lat: v.lat || 0, lng: v.lng || 0,           // v10.2
     }));
     await upsertTable('visits', rows);
     await propagateDeletions(ws, 'visits', rows.map(r => r.id), `/rest/v1/visits?workspace=eq.${enc}&select=id`);
@@ -407,10 +382,6 @@ async function writeAll(ws, payload) {
       commission_value: o.commissionValue || 0,
       commission_pct: o.commissionPct || 0,
       updated_at: now,
-      // [BUG CORRIGIDO v10.2] order_number NÃO é enviado no upsert.
-      // O banco gera via trigger (set_order_number) na inserção.
-      // Enviar order_number: null aqui sobrescreveria o número existente
-      // em pedidos já criados, zerando o campo após cada sync.
     }));
     await upsertTable('orders', rows);
     await propagateDeletions(ws, 'orders', rows.map(r => r.id), `/rest/v1/orders?workspace=eq.${enc}&select=id`);
