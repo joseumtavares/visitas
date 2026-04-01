@@ -1,5 +1,5 @@
 /**
- * app/api/sync/route.js  — v10
+ * app/api/sync/route.js  — v10.2 CORRIGIDO
  *
  * GET  /api/sync?workspace=X  → lê todas as tabelas e devolve estado completo
  * POST /api/sync?workspace=X  → recebe estado completo e sincroniza
@@ -106,6 +106,7 @@ async function readAll(ws) {
     commissionType:  o.commission_type || 'fixed',
     commissionValue: o.commission_value || 0,
     commissionPct:   o.commission_pct || 0,
+    orderNumber:     o.order_number || null,   // BUG FIX v10.2
     items: (orderItems || [])
       .filter(i => i.order_id === o.id)
       .map(i => ({
@@ -398,6 +399,7 @@ async function writeAll(ws, payload) {
       commission_value: o.commissionValue || 0,
       commission_pct: o.commissionPct || 0,
       updated_at: now,
+      // order_number NÃO enviado: trigger set_order_number gera na inserção.
     }));
     await upsertTable('orders', rows);
     await propagateDeletions(ws, 'orders', rows.map(r => r.id), `/rest/v1/orders?workspace=eq.${enc}&select=id`);
