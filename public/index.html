@@ -433,13 +433,21 @@ function useStore(){
   const cloudRequest=useCallback(async(method='GET',payload=null)=>{
     if(!cloudCfg.syncKey)throw new Error('missing-sync-key');
     const workspace=encodeURIComponent(cloudCfg.workspace||'principal');
-    const res=await fetch(`${CLOUD_SYNC_URL}?workspace=${workspace}`,{
-      method,
-      headers:{'Content-Type':'application/json','x-app-key':cloudCfg.syncKey,'x-workspace':cloudCfg.workspace||'principal'},
-      body:payload?JSON.stringify(payload):undefined
-    });
+    let res;
+    try{
+      res=await fetch(`${CLOUD_SYNC_URL}?workspace=${workspace}`,{
+        method,
+        headers:{'Content-Type':'application/json','x-app-key':cloudCfg.syncKey,'x-workspace':cloudCfg.workspace||'principal'},
+        body:payload?JSON.stringify(payload):undefined
+      });
+    }catch(netErr){
+      throw new Error('Sem conexão com o servidor — verifique sua internet ou a URL da Vercel.');
+    }
     const json=await res.json().catch(()=>({}));
-    if(!res.ok)throw new Error(json.error||'cloud-request-failed');
+    if(!res.ok){
+      const detail=json.error||json.message||'';
+      throw new Error(`HTTP ${res.status}${detail?' — '+detail:''}`);
+    }
     return json;
   },[cloudCfg]);
 
@@ -460,7 +468,7 @@ function useStore(){
       return remote;
     }catch(err){
       setSyncState(s=>({...s,busy:false,ready:true,enabled:!!cloudCfg.syncKey,error:err.message||'cloud-pull-failed'}));
-      if(!silent)showToast('⚠️ Não foi possível baixar os dados da nuvem.');
+      if(!silent)showToast('⚠️ Não foi possível baixar os dados da nuvem: '+( err.message||'erro desconhecido'));
       return null;
     }
   },[cloudCfg.syncKey,cloudRequest]);
@@ -477,7 +485,7 @@ function useStore(){
       return result;
     }catch(err){
       setSyncState(s=>({...s,busy:false,ready:true,enabled:!!cloudCfg.syncKey,error:err.message||'cloud-push-failed'}));
-      if(!silent)showToast('⚠️ Não foi possível enviar os dados para a nuvem.');
+      if(!silent)showToast('⚠️ Não foi possível enviar os dados para a nuvem: '+(err.message||'erro desconhecido'));
       return null;
     }
   },[cloudCfg.syncKey,cloudRequest]);
@@ -1288,7 +1296,8 @@ function Dashboard({store,setPage,setClientId}){
             <div style={{fontSize:13,fontWeight:600}}>Sincronizar automaticamente quando houver internet</div>
           </div>
           <div style={{background:'var(--bg)',borderRadius:8,padding:10,fontSize:12,color:'var(--text2)',lineHeight:1.5,marginBottom:10}}>
-            Status: <b>{!cloudCfg.syncKey?'Local apenas':syncState.busy?'Sincronizando…':syncState.error?'Falha na nuvem':'Nuvem pronta'}</b>
+            Status: <b style={{color:syncState.error?'var(--danger)':undefined}}>{!cloudCfg.syncKey?'Local apenas':syncState.busy?'Sincronizando…':syncState.error?'Falha na nuvem':'Nuvem pronta'}</b>
+            {syncState.error&&<><br/><span style={{color:'var(--danger)',fontWeight:600}}>⚠️ Erro: {syncState.error}</span></>}
             {syncState.remoteUpdatedAt&&<><br/>Última versão na nuvem: {new Date(syncState.remoteUpdatedAt).toLocaleString('pt-BR')}</>}
             {syncState.lastPush&&<><br/>Último envio: {new Date(syncState.lastPush).toLocaleString('pt-BR')}</>}
             {syncState.lastPull&&<><br/>Último download: {new Date(syncState.lastPull).toLocaleString('pt-BR')}</>}
