@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'thermovisit-v4';
+const CACHE_VERSION = 'agri-vendas-v1';
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_ASSETS = [
@@ -34,7 +34,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys => Promise.all(
       keys
         .filter(key => ![APP_CACHE, RUNTIME_CACHE].includes(key))
-        .filter(key => key.startsWith('thermovisit-'))
+        .filter(key => key.startsWith('agri-vendas-'))
         .map(key => caches.delete(key))
     )).then(() => self.clients.claim())
   );

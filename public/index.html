@@ -261,7 +261,7 @@ async function saveAllPhotosToGallery(photoIds,prefix,onProgress){
     const data=await PS.get(id);
     if(!data)continue;
     const ts=new Date().toISOString().replace(/[-:T]/g,'').slice(0,15);
-    const filename=`thermovisit_${prefix}_${ts}_${saved+1}.jpg`;
+    const filename=`agrivendas_${prefix}_${ts}_${saved+1}.jpg`;
     const a=document.createElement('a');a.href=data;a.download=filename;
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     saved++;
@@ -368,7 +368,7 @@ function normalizeDataState(s){
 function stampDataState(next,prev){
   const prevMeta=prev?._meta||{};
   const nextMeta=next?._meta||{};
-  return{...next,_meta:{...prevMeta,...nextMeta,schemaVersion:5,localUpdatedAt:new Date().toISOString()}};
+  return{...next,_meta:{...prevMeta,...nextMeta,schemaVersion:10,localUpdatedAt:new Date().toISOString()}};
 }
 function getInitialPage(){
   try{
@@ -764,12 +764,12 @@ function useStore(){
       meta._backupType='full';meta._photoCount=photos.length;
       const payload={...data,...meta,_photos:pm};
       const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-      _dl(blob,`thermovisit-completo-${dateStr}-${data.clients?.length||0}cli.json`);
+      _dl(blob,`agrivendas-completo-${dateStr}-${data.clients?.length||0}cli.json`);
       markBackup();showToast(`✅ Backup completo! ${data.clients?.length||0} clientes, ${photos.length} fotos (${(blob.size/1024/1024).toFixed(1)} MB)`);
     }else{
       meta._backupType='data-only';
       const blob=new Blob([JSON.stringify({...data,...meta},null,2)],{type:'application/json'});
-      _dl(blob,`thermovisit-dados-${dateStr}-${data.clients?.length||0}cli.json`);
+      _dl(blob,`agrivendas-dados-${dateStr}-${data.clients?.length||0}cli.json`);
       markBackup();showToast(`✅ Backup de dados! ${data.clients?.length||0} clientes (${(blob.size/1024).toFixed(0)} KB)`);
     }
   };
@@ -949,7 +949,7 @@ function PhotoUploader({photoIds,onChange,label,contextName}){
     const data=previews[id];if(!data)return;
     const ts=new Date().toISOString().replace(/[-:T]/g,'').slice(0,15);
     const prefix=(contextName||'foto').replace(/[^a-z0-9]/gi,'_').toLowerCase().slice(0,20);
-    const filename=`thermovisit_${prefix}_${ts}.jpg`;
+    const filename=`agrivendas_${prefix}_${ts}.jpg`;
     const result=await savePhotoToGallery(data,filename);
     if(result==='downloaded')setSaveProgress('📥 Foto salva em Downloads!');
     else setSaveProgress('✅ Foto compartilhada!');
