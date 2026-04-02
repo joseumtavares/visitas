@@ -14,9 +14,10 @@ import { validateSyncKey, sanitizeWorkspace } from '@/lib/supabase';
 
 function getStorageConfig() {
   const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY;
+  // Suporta SUPABASE_SERVICE_ROLE_KEY (padrão Vercel/Supabase) e SUPABASE_SERVICE_KEY (legado)
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
   if (!url || !key) {
-    throw new Error('[photos] SUPABASE_URL e SUPABASE_SERVICE_KEY são obrigatórios.');
+    throw new Error('[photos] Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_SERVICE_KEY) na Vercel.');
   }
   return {
     url,
