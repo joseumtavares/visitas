@@ -1,20 +1,34 @@
 /**
- * app/api/photos/route.js — v10
+ * app/api/photos/route.js — v10.3
  *
  * POST /api/photos  → upload de foto para Supabase Storage
  * GET  /api/photos?photoId=X&workspace=Y → download de foto
+ *
+ * CORREÇÃO v10.3 (Bug F): variáveis de ambiente movidas para função lazy
+ * getStorageConfig(), evitando leitura no nível do módulo durante o build
+ * da Vercel (padrão consistente com lib/supabase.js).
  */
 
 import { NextResponse } from 'next/server';
 import { validateSyncKey, sanitizeWorkspace } from '@/lib/supabase';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const BUCKET       = process.env.SUPABASE_PHOTOS_BUCKET || 'photos';
+function getStorageConfig() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) {
+    throw new Error('[photos] SUPABASE_URL e SUPABASE_SERVICE_KEY são obrigatórios.');
+  }
+  return {
+    url,
+    key,
+    bucket: process.env.SUPABASE_PHOTOS_BUCKET || 'photos',
+  };
+}
 
 export async function POST(request) {
   try {
     validateSyncKey(request);
+    const { url: SUPABASE_URL, key: SUPABASE_KEY, bucket: BUCKET } = getStorageConfig();
     const ws = sanitizeWorkspace(
       request.headers.get('x-workspace') || 'principal'
     );
@@ -57,6 +71,7 @@ export async function POST(request) {
 export async function GET(request) {
   try {
     validateSyncKey(request);
+    const { url: SUPABASE_URL, key: SUPABASE_KEY, bucket: BUCKET } = getStorageConfig();
     const { searchParams } = new URL(request.url);
     const photoId  = searchParams.get('photoId');
     const ws       = sanitizeWorkspace(searchParams.get('workspace') || 'principal');

@@ -1,4 +1,4 @@
-# Agri Vendas v10.2 — Pacote Final Corrigido
+# Agri Vendas v10.3 — Pacote Final Corrigido
 
 ## O problema raiz
 
@@ -7,7 +7,7 @@ nas versões v10, v10.1 e v10.2. A migração para Next.js criou apenas as rotas
 mas a pasta `public/` ficou vazia. Por isso o deploy funcionava (APIs respondiam),
 mas a raiz retornava 404.
 
-## Erros corrigidos neste pacote
+## Erros corrigidos na v10.2 (histórico)
 
 | # | Arquivo | Bug | Correção |
 |---|---------|-----|----------|
@@ -20,7 +20,18 @@ mas a raiz retornava 404.
 | 7 | `app/api/sync/route.js` | `order_number` não mapeado no `readAll` | Adicionado `orderNumber: o.order_number \|\| null` |
 | 8 | `app/api/sync/route.js` | `order_number: null` sobrescrevia trigger no upsert | Campo omitido do payload de update |
 
-## Patches aplicados no index.html (v9 → v10.2)
+## Erros adicionais corrigidos na v10.3
+
+| # | Arquivo | Bug | Severidade | Correção |
+|---|---------|-----|-----------|----------|
+| A | `public/sw.js` | Cache com nome `thermovisit-v4` — PWA instalado não recebia atualizações | **Alto** | Renomeado para `agri-vendas-v1`; filtro de limpeza corrigido |
+| B | `app/api/sync/ops/route.js` | `activity_type`, `lat`, `lng` ausentes no mapper de `visits` — dados perdidos no sync offline | **Alto** | Campos adicionados ao `toSnake()` da entidade `visits` |
+| C | `public/index.html` | Nomes de arquivo de fotos e backups usando prefixo `thermovisit_` | Baixo | Renomeados para `agrivendas_` |
+| D | `.env.example` | Header do arquivo ainda dizia `ThermoVisit v10` | Baixo | Atualizado para `Agri Vendas v10.3` |
+| E | `public/index.html` | `schemaVersion: 5` hardcoded no `stampDataState` — poderia causar reprocessamento indevido | Médio | Corrigido para `schemaVersion: 10` |
+| F | `app/api/photos/route.js` | Env vars lidas no nível do módulo (inconsistente com padrão lazy) | Baixo | Movidas para `getStorageConfig()` lazy, igual ao `lib/supabase.js` |
+
+## Patches aplicados no index.html (v9 → v10.3)
 
 | Patch | O que mudou |
 |-------|-------------|
@@ -41,25 +52,27 @@ mas a raiz retornava 404.
 | VisitsList | Botão + Nova Visita, botão ✏️ Editar, badge tipo atividade |
 | App routing | Rotas `visitForm`, `visitMap`, `productDetail` |
 | App/Store name | ThermoVisit → Agri Vendas em todo o sistema |
+| stampDataState | v10.3: `schemaVersion` corrigido de 5 para 10 |
+| filenames fotos/backup | v10.3: prefixo `thermovisit_` → `agrivendas_` |
 
 ## Estrutura do pacote
 
 ```
-agri-vendas-v10.2-final/
+agri-vendas-v10.3-final/
 ├── public/
-│   ├── index.html          ← FRONTEND COMPLETO (219KB)
+│   ├── index.html          ← FRONTEND COMPLETO (v10.3 corrigido)
 │   ├── manifest.json       ← PWA — Agri Vendas
-│   └── sw.js               ← Service Worker
+│   └── sw.js               ← Service Worker (cache agri-vendas-v1)
 ├── app/api/
 │   ├── sync/
-│   │   ├── route.js        ← GET/POST sync (CORRIGIDO: orderNumber)
-│   │   └── ops/route.js    ← Sync offline-first ops
-│   ├── photos/route.js     ← Upload/download fotos
+│   │   ├── route.js        ← GET/POST sync (orderNumber corrigido)
+│   │   └── ops/route.js    ← Sync offline-first (visits com activity_type/lat/lng)
+│   ├── photos/route.js     ← Upload/download fotos (getStorageConfig lazy)
 │   ├── cep/route.js        ← Busca CEP
 │   └── drawing/route.js    ← Dados para desenho técnico
 ├── lib/
-│   ├── supabase.js         ← Cliente HTTP (CORRIGIDO: sem throw no build)
-│   ├── uuid.js             ← Gerador UUID (CORRIGIDO: sem import React)
+│   ├── supabase.js         ← Cliente HTTP (validação lazy)
+│   ├── uuid.js             ← Gerador UUID (sem import React)
 │   └── cep.js              ← Helper CEP
 ├── services/
 │   ├── commissionService.js
@@ -67,11 +80,11 @@ agri-vendas-v10.2-final/
 │   └── pdfService.js
 ├── supabase/
 │   └── schema_v10_2_migration_CORRIGIDO.sql
-├── package.json
-├── next.config.js          ← CORRIGIDO: rewrite SPA + headers
-├── jsconfig.json           ← ADICIONADO: paths @/
+├── package.json            ← versão 10.3.0
+├── next.config.js          ← rewrite SPA + headers
+├── jsconfig.json           ← paths @/
 ├── vercel.json             ← Next.js framework
-├── .env.example
+├── .env.example            ← Agri Vendas v10.3
 ├── .gitignore
 └── LEIAME.md               ← Este arquivo
 ```

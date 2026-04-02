@@ -85,13 +85,16 @@ function toSnake(entity, payload, ws) {
   }
   if (entity === 'visits') {
     return {
-      id:          payload.id,
-      workspace:   ws,
-      client_id:   payload.clientId,
-      date:        payload.date,
-      notes:       payload.notes || '',
-      next_contact: payload.nextContact || null,
-      updated_at:  now,
+      id:            payload.id,
+      workspace:     ws,
+      client_id:     payload.clientId,
+      date:          payload.date,
+      notes:         payload.notes || '',
+      next_contact:  payload.nextContact || null,
+      activity_type: payload.activityType || 'Visita', // Bug B fix: campos v10.2
+      lat:           payload.lat || 0,                  // Bug B fix: geolocalização
+      lng:           payload.lng || 0,                  // Bug B fix: geolocalização
+      updated_at:    now,
     };
   }
   if (entity === 'commissions') {
